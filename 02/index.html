@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>エビングハウス錯視を測る｜知覚・認知心理学 第2回</title>
+<!--
+  知覚・認知心理学 第2回 演習「エビングハウス錯視の錯視量を恒常法で測る」
+  ・単一の HTML ファイル。ネットワーク不要。PC（クリック／← →キー）とスマートフォン（タップ）で動く。
+  ・二肢強制選択（2AFC）＋恒常法。錯視条件（比較刺激を小さな円で囲む）と統制条件（両方とも孤立円）を混ぜてランダム順に提示。
+    標準刺激（孤立円、大きさ一定）と比較刺激（大きさ 7 水準）の左右はランダム。
+  ・終了後、心理測定関数を当てはめて PSE と錯視量を表示し、Google Form に貼るための「結果コード」を出す。
+  ・URL パラメータ  ?reps=1  で反復回数を減らせる（動作確認用。既定は錯視条件 5 反復・統制条件 2 反復）。
+  ・設定は下の CONFIG を編集する。結果コードの書式は README.md と analysis_ebbinghaus.R を参照。
+-->
+<style>
+  :root {
+    --navy: #1B2A49; --indigo: #3A5BA0; --amber: #C98A2B; --grey: #8A8F94; --ink: #2B3A42; --light: #EEF1F8;
+    --target: #3A5BA0; --inducer: #2B3A42;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #fff; color: var(--ink);
+    font-family: "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans JP", "Noto Sans CJK JP", sans-serif;
+    -webkit-text-size-adjust: 100%; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  .screen { display: none; flex: 1; flex-direction: column; }
+  .screen.active { display: flex; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 40px; width: 100%; }
+  h1 { color: var(--navy); font-size: 1.5rem; margin: 0 0 0.3em; line-height: 1.3; }
+  h2 { color: var(--navy); font-size: 1.15rem; margin: 1.2em 0 0.4em; }
+  p, li { line-height: 1.7; font-size: 1rem; }
+  .lead { color: var(--indigo); font-weight: 700; }
+  .small { font-size: 0.85rem; color: var(--grey); }
+  .term { background: var(--light); color: var(--navy); padding: 0.05em 0.45em; border-radius: 5px; font-weight: 700; white-space: nowrap; }
+  ol { padding-left: 1.4em; }
+  button { font: inherit; }
+  .btn { display: inline-block; background: var(--indigo); color: #fff; border: none; border-radius: 8px; padding: 0.75em 1.6em; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: #fff; color: var(--indigo); border: 2px solid var(--indigo); }
+  .btn.amber { background: var(--amber); }
+  .btn[disabled] { opacity: 0.5; cursor: default; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 1.2em; }
+  .card { background: var(--light); border-radius: 10px; padding: 14px 18px; margin: 0.8em 0; }
+  .demo-figure { display: flex; justify-content: center; margin: 0.6em 0 0.2em; }
+  .demo-figure svg { width: 100%; max-width: 520px; height: auto; }
+
+  /* ---- 試行画面 ---- */
+  #trial { position: relative; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  #progress { position: absolute; top: 0; left: 0; height: 5px; background: var(--indigo); width: 0; transition: width 0.15s; }
+  #question { text-align: center; color: var(--navy); font-weight: 700; font-size: 1.25rem; padding: 26px 16px 0; min-height: 3.2em; }
+  #question .sub { display: block; font-weight: 400; color: var(--grey); font-size: 0.85rem; margin-top: 0.25em; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  #stimulus { display: block; width: min(100vw, 1000px); height: auto; max-height: calc(100vh - 220px); }
+  .half { position: absolute; top: 0; bottom: 0; width: 50%; cursor: pointer; }
+  .half.left { left: 0; } .half.right { right: 0; }
+  .half:active { background: rgba(58, 91, 160, 0.06); }
+  #buttons { display: flex; justify-content: center; gap: 6vw; padding: 10px 16px 26px; }
+  #buttons .btn { min-width: 34vw; max-width: 260px; font-size: 1.15rem; padding: 0.9em 0; }
+  #hint { text-align: center; color: var(--grey); font-size: 0.85rem; padding-bottom: 12px; }
+  #fixation { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2.2rem; color: var(--ink); font-weight: 700; display: none; }
+
+  /* ---- 結果画面 ---- */
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 0.8em 0; }
+  .stat { flex: 1 1 150px; background: var(--light); border-radius: 10px; padding: 12px 14px; }
+  .stat .label { font-size: 0.8rem; font-weight: 700; color: var(--indigo); }
+  .stat .value { font-size: 1.9rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .stat .note { font-size: 0.78rem; color: var(--grey); }
+  .stat.amber .label { color: var(--amber); }
+  #chart { width: 100%; max-width: 720px; height: auto; display: block; margin: 0.5em auto; }
+  #code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.95rem; background: #fff; border: 2px dashed var(--indigo); border-radius: 8px; padding: 10px 12px; word-break: break-all; margin: 0.5em 0; }
+  table.levels { border-collapse: collapse; font-size: 0.85rem; margin: 0.4em 0; }
+  table.levels th, table.levels td { border: 1px solid #C9D3D8; padding: 0.3em 0.7em; text-align: right; }
+  table.levels th { background: var(--navy); color: #fff; }
+  .warn { color: var(--amber); font-weight: 700; }
+  @media (max-width: 600px) {
+    h1 { font-size: 1.25rem; } p, li { font-size: 0.95rem; }
+    #question { font-size: 1.05rem; padding-top: 18px; }
+    #stimulus { max-height: calc(100vh - 250px); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== 1. 教示 ===================== -->
+<section id="intro" class="screen active">
+  <div class="wrap">
+    <h1>エビングハウス錯視を測る</h1>
+    <p class="lead">知覚・認知心理学 第2回　演習：心理物理学（恒常法・二肢強制選択）</p>
+    <p>画面の左右に、青い円が 1 つずつ出ます。片方は小さな円で囲まれていることがあります。<strong>青い中心の円だけ</strong>に注目して、<strong>左と右のどちらが大きく見えるか</strong>を答えてください。</p>
+    <div class="demo-figure" id="demo-figure"></div>
+    <ol>
+      <li><strong>直感で、できるだけ速く</strong>答えてください。考え込むと結果が変わります（正解はありません）。</li>
+      <li>同じくらいに見えても、<strong>必ずどちらかを選ぶ</strong>（強制選択）。</li>
+      <li><strong>できれば PC</strong> で行ってください（<span class="term">←</span> <span class="term">→</span> キー、または画面の左右をクリック）。スマートフォンの場合は画面の左右をタップ。</li>
+      <li>練習 <span id="n-practice">3</span> 回のあと、本番 <span id="n-main">108</span> 回（約 3〜4 分）。途中でやめずに最後まで進んでください。</li>
+    </ol>
+    <p class="small">終わると、あなたの心理測定関数と「錯視量」が表示され、Google Form に貼り付ける <strong>結果コード</strong> が出ます。画面の明るさや距離は普段どおりで構いません（画面から 40〜60 cm 程度）。</p>
+    <div class="row">
+      <button class="btn" id="start-practice">練習をはじめる</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 2. 試行 ===================== -->
+<section id="trial" class="screen">
+  <div id="progress"></div>
+  <div id="question">中心の円は、どちらが大きい？<span class="sub" id="trial-counter"></span></div>
+  <div id="stage">
+    <svg id="stimulus" viewBox="0 0 1000 460" xmlns="http://www.w3.org/2000/svg" aria-label="stimulus"></svg>
+    <div id="fixation">＋</div>
+    <div class="half left" data-resp="L" aria-label="左"></div>
+    <div class="half right" data-resp="R" aria-label="右"></div>
+  </div>
+  <div id="buttons">
+    <button class="btn" data-resp="L">◀ 左が大きい</button>
+    <button class="btn" data-resp="R">右が大きい ▶</button>
+  </div>
+  <div id="hint">← / → キーでも回答できます</div>
+</section>
+
+<!-- ===================== 3. 練習終了 ===================== -->
+<section id="between" class="screen">
+  <div class="wrap">
+    <h1>練習おわり</h1>
+    <p>ここから本番です。<span id="n-main2">108</span> 回、同じ要領で答えてください。途中に「両方とも囲まれていない」画面も混ざります。それも同じように答えてください。</p>
+    <div class="row"><button class="btn" id="start-main">本番をはじめる</button></div>
+  </div>
+</section>
+
+<!-- ===================== 4. 結果 ===================== -->
+<section id="result" class="screen">
+  <div class="wrap">
+    <h1>結果：あなたの心理測定関数</h1>
+    <p class="small">横軸は「比較刺激（囲まれた方、または右側の円）の大きさ ÷ 標準刺激の大きさ」。縦軸は「比較刺激の方が大きい」と答えた割合。曲線は当てはめた累積正規分布。</p>
+    <svg id="chart" viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="stats">
+      <div class="stat amber"><div class="label">錯視量</div><div class="value" id="r-eff">–</div><div class="note">小さな円に囲まれると、この割合だけ大きく見えた</div></div>
+      <div class="stat"><div class="label">PSE（錯視条件）</div><div class="value" id="r-pse">–</div><div class="note">この大きさの比で「同じ」に見えた</div></div>
+      <div class="stat"><div class="label">PSE（統制条件）</div><div class="value" id="r-ctl">–</div><div class="note">囲みなし。1 からのずれは左右などのバイアス</div></div>
+    </div>
+    <p id="r-note" class="small"></p>
+    <h2>結果コード（Google Form に貼り付け）</h2>
+    <div id="code">–</div>
+    <div class="row">
+      <button class="btn" id="copy">結果コードをコピー</button>
+      <button class="btn secondary" id="csv">試行データ（CSV）を保存</button>
+      <span id="copied" class="small"></span>
+    </div>
+    <h2>水準ごとの回答</h2>
+    <div id="table"></div>
+    <p class="small">PSE（主観的等価点）は「比較刺激の方が大きい」と答える確率が 50％ になる比。錯視量 ＝ （統制条件の PSE − 錯視条件の PSE）÷ 統制条件の PSE × 100。曲線の当てはめはプロビット回帰（最尤法）。</p>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  // ===================== CONFIG =====================
+  const params = new URLSearchParams(location.search);
+  const CONFIG = {
+    // 比較刺激 ÷ 標準刺激（直径の比）。刻みは 3%：弁別閾（jnd）が 3〜4% 程度なので、5% 刻みでは曲線が 2 水準で立ち上がってしまい PSE の分解能が足りなかった
+    levels: [0.82, 0.85, 0.88, 0.91, 0.94, 0.97, 1.00, 1.03, 1.06],
+    repsIllusion: parseInt(params.get('reps') || '4', 10),   // 錯視条件：水準 × 左右 × 反復 = 9 × 2 × 4 = 72 試行
+    repsControl:  parseInt(params.get('repsc') || '2', 10),  // 統制条件：9 × 2 × 2 = 36 試行
+    practice: 3,
+    fixationMs: 400,        // 刺激の前に注視点を出す時間
+    blankMs: 250,           // 回答後の空白
+    minRtMs: 200,           // これより速い回答は無効（同じ試行をやり直す）
+    // 刺激の形（標準刺激の半径を 1 とした相対値）
+    stdRadius: 70,          // px（viewBox 1000×460 の中）
+    // 小さな誘導円：個数、半径、中心からの距離（標準刺激の半径 = 1 基準）。
+    // 数を増やし（8 → 12）、小さく（0.45 → 0.35）、近づける（1.85 → 1.55）と、囲まれた円が大きく見える効果は強くなる（Roberts et al., 2005）
+    inducerN: 12, inducerR: 0.35, inducerD: 1.55,
+    // classic: true にすると標準刺激の周りに大きな誘導円も描く（教科書的な両側提示。錯視量は「大で小さく見える」＋「小で大きく見える」の合計になる）
+    classic: params.get('classic') === '1',
+    bigN: 6, bigR: 1.35, bigD: 2.75,
+    centersX: [250, 750], centerY: 230,
+    version: 'EBB3'   // 結果コードの版。EBB2 = 7 水準（0.80〜1.10）、EBB3 = 9 水準（0.82〜1.06）。analysis_ebbinghaus.R と対応
+  };
+  const N_ILL = CONFIG.levels.length * 2 * CONFIG.repsIllusion;
+  const N_CTL = CONFIG.levels.length * 2 * CONFIG.repsControl;
+  document.getElementById('n-practice').textContent = CONFIG.practice;
+  document.getElementById('n-main').textContent = N_ILL + N_CTL;
+  document.getElementById('n-main2').textContent = N_ILL + N_CTL;
+
+  // ===================== 画面切替 =====================
+  const screens = {};
+  document.querySelectorAll('.screen').forEach(s => screens[s.id] = s);
+  function show(id) { Object.values(screens).forEach(s => s.classList.remove('active')); screens[id].classList.add('active'); window.scrollTo(0, 0); }
+
+  // ===================== 刺激の描画 =====================
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function circle(cx, cy, r, fill) {
+    const c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r); c.setAttribute('fill', fill);
+    return c;
+  }
+  // side: 'L' | 'R' … 比較刺激（大きさが変わる方）の位置。cond: 'ill'（比較刺激を小円で囲む）| 'ctl'（両方孤立）
+  function drawStimulus(svg, k, side, cond) {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const R = CONFIG.classic ? CONFIG.stdRadius * 0.72 : CONFIG.stdRadius;
+    const xCmp = side === 'L' ? CONFIG.centersX[0] : CONFIG.centersX[1];
+    const xStd = side === 'L' ? CONFIG.centersX[1] : CONFIG.centersX[0];
+    const y = CONFIG.centerY;
+    const style = getComputedStyle(document.documentElement);
+    const colT = style.getPropertyValue('--target').trim(), colI = style.getPropertyValue('--inducer').trim();
+    // 標準刺激（孤立円。classic なら大きな誘導円で囲む）
+    if (CONFIG.classic) {
+      for (let i = 0; i < CONFIG.bigN; i++) {
+        const a = 2 * Math.PI * i / CONFIG.bigN + Math.PI / 2;
+        svg.appendChild(circle(xStd + R * CONFIG.bigD * Math.cos(a), y + R * CONFIG.bigD * Math.sin(a), R * CONFIG.bigR, colI));
+      }
+    }
+    svg.appendChild(circle(xStd, y, R, colT));
+    // 比較刺激
+    if (cond === 'ill') {
+      const rc = R * k;                              // 中心円の半径
+      const rI = R * CONFIG.inducerR, d = R * CONFIG.inducerD;   // 誘導円は標準刺激の半径を基準に固定（中心円の大きさに連動させない）
+      for (let i = 0; i < CONFIG.inducerN; i++) {
+        const a = 2 * Math.PI * i / CONFIG.inducerN + Math.PI / 2;
+        svg.appendChild(circle(xCmp + d * Math.cos(a), y + d * Math.sin(a), rI, colI));
+      }
+      svg.appendChild(circle(xCmp, y, rc, colT));
+    } else {
+      svg.appendChild(circle(xCmp, y, R * k, colT));
+    }
+  }
+  // 教示用の見本
+  (function demo() {
+    const wrap = document.getElementById('demo-figure');
+    const svg = document.createElementNS(SVG_NS, 'svg'); svg.setAttribute('viewBox', '0 0 1000 460');
+    wrap.appendChild(svg); drawStimulus(svg, 1.0, 'R', 'ill');
+    const t = document.createElementNS(SVG_NS, 'text'); t.setAttribute('x', 500); t.setAttribute('y', 440); t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('fill', '#8A8F94'); t.setAttribute('font-size', '26'); t.textContent = '例：この画面では、中心の円はどちらが大きく見えますか？'; svg.appendChild(t);
+  })();
+
+  // ===================== 試行リスト =====================
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function buildTrials() {
+    const t = [];
+    for (const k of CONFIG.levels) for (const side of ['L', 'R']) {
+      for (let r = 0; r < CONFIG.repsIllusion; r++) t.push({ cond: 'ill', k, side });
+      for (let r = 0; r < CONFIG.repsControl; r++) t.push({ cond: 'ctl', k, side });
+    }
+    return shuffle(t);
+  }
+  function buildPractice() {
+    const ks = [0.82, 1.06, 0.94];
+    return ks.map((k, i) => ({ cond: i === 2 ? 'ctl' : 'ill', k, side: Math.random() < 0.5 ? 'L' : 'R' }));
+  }
+
+  // ===================== 実行 =====================
+  const svg = document.getElementById('stimulus');
+  const fixation = document.getElementById('fixation');
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('trial-counter');
+  let trials = [], idx = 0, phase = 'practice', data = [], accepting = false, tOnset = 0, current = null;
+  const sessionId = Math.random().toString(36).slice(2, 6);
+
+  function runTrial() {
+    if (idx >= trials.length) { finishPhase(); return; }
+    current = trials[idx];
+    accepting = false;
+    svg.style.visibility = 'hidden';
+    fixation.style.display = 'block';
+    counter.textContent = (phase === 'practice' ? '練習 ' : '') + (idx + 1) + ' / ' + trials.length;
+    progress.style.width = (100 * idx / trials.length) + '%';
+    setTimeout(() => {
+      fixation.style.display = 'none';
+      drawStimulus(svg, current.k, current.side, current.cond);
+      svg.style.visibility = 'visible';
+      tOnset = performance.now();
+      accepting = true;
+    }, CONFIG.fixationMs);
+  }
+  function respond(resp) {
+    if (!accepting) return;
+    const rt = performance.now() - tOnset;
+    if (rt < CONFIG.minRtMs) return;   // 速すぎる回答は無視
+    accepting = false;
+    if (phase === 'main') {
+      data.push({ trial: idx + 1, cond: current.cond, k: current.k, cmpSide: current.side, resp,
+                  choseCmp: resp === current.side ? 1 : 0, rt: Math.round(rt) });
+    }
+    svg.style.visibility = 'hidden';
+    idx++;
+    setTimeout(runTrial, CONFIG.blankMs);
+  }
+  function finishPhase() {
+    if (phase === 'practice') { show('between'); }
+    else { showResult(); }
+  }
+  document.getElementById('start-practice').addEventListener('click', () => {
+    phase = 'practice'; trials = buildPractice(); idx = 0; show('trial'); runTrial();
+  });
+  document.getElementById('start-main').addEventListener('click', () => {
+    phase = 'main'; trials = buildTrials(); idx = 0; data = []; show('trial'); runTrial();
+  });
+  document.querySelectorAll('[data-resp]').forEach(el => {
+    el.addEventListener('click', e => { e.preventDefault(); respond(el.getAttribute('data-resp')); });
+  });
+  document.addEventListener('keydown', e => {
+    if (!screens.trial.classList.contains('active')) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); respond('L'); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); respond('R'); }
+  });
+
+  // ===================== 解析：プロビット回帰 =====================
+  function Phi(z) {  // 標準正規分布の累積分布関数（近似）
+    const t = 1 / (1 + 0.2316419 * Math.abs(z));
+    const d = 0.3989422804014327 * Math.exp(-z * z / 2);
+    const p = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+    return z >= 0 ? 1 - p : p;
+  }
+  function phi(z) { return 0.3989422804014327 * Math.exp(-z * z / 2); }
+  // 水準ごとの (x, 成功数, 試行数) からプロビット回帰 P = Phi(a + b x) を最尤推定（ニュートン法、弱いリッジ）
+  function fitProbit(levels) {
+    let a = 0, b = 1;
+    const xs = levels.map(l => l.x), ys = levels.map(l => l.y), ns = levels.map(l => l.n);
+    const xm = xs.reduce((s, v) => s + v, 0) / xs.length;
+    // 初期値：分離データでも動くよう 0.5 の擬似回答を各水準に加えた線形近似
+    let sxx = 0, sxy = 0;
+    for (let i = 0; i < xs.length; i++) { const p = (ys[i] + 0.5) / (ns[i] + 1); const z = -Math.log(1 / Math.min(Math.max(p, 0.02), 0.98) - 1) * 0.6; sxx += (xs[i] - xm) ** 2; sxy += (xs[i] - xm) * z; }
+    b = sxx > 0 ? sxy / sxx : 10; a = -b * xm;
+    const lambda = 1e-3;
+    for (let it = 0; it < 60; it++) {
+      let g0 = 0, g1 = 0, h00 = 0, h01 = 0, h11 = 0;
+      for (let i = 0; i < xs.length; i++) {
+        const eta = a + b * xs[i], P = Math.min(Math.max(Phi(eta), 1e-6), 1 - 1e-6), f = phi(eta);
+        const w = ns[i] * f * f / (P * (1 - P));           // 期待情報量（Fisher scoring）
+        const r = (ys[i] - ns[i] * P) * f / (P * (1 - P));   // スコア
+        g0 += r; g1 += r * xs[i]; h00 += w; h01 += w * xs[i]; h11 += w * xs[i] * xs[i];
+      }
+      g0 -= lambda * a; g1 -= lambda * (b - 1); h00 += lambda; h11 += lambda;   // リッジ（b を 1 に、a を 0 に弱く引く）
+      const det = h00 * h11 - h01 * h01; if (Math.abs(det) < 1e-12) break;
+      const da = (h11 * g0 - h01 * g1) / det, db = (-h01 * g0 + h00 * g1) / det;
+      a += da; b += db;
+      if (Math.abs(da) + Math.abs(db) < 1e-8) break;
+    }
+    return { a, b, pse: -a / b, slope: b };
+  }
+  function summarize(cond) {
+    return CONFIG.levels.map(k => {
+      const rows = data.filter(d => d.cond === cond && d.k === k);
+      return { x: k, n: rows.length, y: rows.reduce((s, d) => s + d.choseCmp, 0) };
+    });
+  }
+
+  // ===================== 結果表示 =====================
+  function fmt(v, d) { return Number.isFinite(v) ? v.toFixed(d) : '–'; }
+  function showResult() {
+    show('result');
+    const ill = summarize('ill'), ctl = summarize('ctl');
+    const fi = fitProbit(ill), fc = fitProbit(ctl);
+    const lo = CONFIG.levels[0] - 0.08, hi = CONFIG.levels[CONFIG.levels.length - 1] + 0.08;
+    const pseI = Math.min(Math.max(fi.pse, lo), hi), pseC = Math.min(Math.max(fc.pse, lo), hi);
+    const eff = (pseC - pseI) / pseC * 100;
+    document.getElementById('r-pse').textContent = fmt(pseI, 3);
+    document.getElementById('r-ctl').textContent = fmt(pseC, 3);
+    document.getElementById('r-eff').textContent = (eff >= 0 ? '+' : '') + fmt(eff, 1) + ' %';
+    let note = '';
+    if (fi.pse < lo || fi.pse > hi || fc.pse < lo || fc.pse > hi) note += 'PSE が測定範囲の外に出ています（回答がほぼ一方に偏っていた可能性）。表示は範囲の端に丸めています。 ';
+    if (fi.slope < 3) note += '錯視条件の回答が水準によらずばらついています（曲線が平ら）。';
+    document.getElementById('r-note').innerHTML = note ? '<span class="warn">注意：</span>' + note : '錯視量が正なら「小さな円に囲まれた円は大きく見える」方向。統制条件の PSE が 1 から離れているほど、左右や回答のくせ（バイアス）が大きい。';
+    // 結果コード
+    const code = [CONFIG.version, 'ill=' + fmt(pseI, 3), 'ctl=' + fmt(pseC, 3), 'eff=' + fmt(eff, 1), 'n=' + data.length,
+                  'ic=' + ill.map(l => l.y).join('.'), 'cc=' + ctl.map(l => l.y).join('.'),
+                  'ri=' + CONFIG.repsIllusion + '/' + CONFIG.repsControl, 'id=' + sessionId].join('|');
+    document.getElementById('code').textContent = code;
+    drawChart(ill, ctl, fi, fc, pseI, pseC);
+    // 表
+    let html = '<table class="levels"><tr><th>比較 ÷ 標準</th>' + CONFIG.levels.map(k => '<th>' + k.toFixed(2) + '</th>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">錯視条件：比較が大きい（回）</td>' + ill.map(l => '<td>' + l.y + ' / ' + l.n + '</td>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">統制条件：比較が大きい（回）</td>' + ctl.map(l => '<td>' + l.y + ' / ' + l.n + '</td>').join('') + '</tr></table>';
+    document.getElementById('table').innerHTML = html;
+    // ボタン
+    document.getElementById('copy').onclick = async () => {
+      try { await navigator.clipboard.writeText(code); document.getElementById('copied').textContent = 'コピーしました。Google Form に貼り付けてください。'; }
+      catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.getElementById('copied').textContent = '選択したので、そのままコピーしてください。'; }
+    };
+    document.getElementById('csv').onclick = () => {
+      const head = 'trial,cond,k,cmpSide,resp,choseCmp,rt_ms\n';
+      const body = data.map(d => [d.trial, d.cond, d.k, d.cmpSide, d.resp, d.choseCmp, d.rt].join(',')).join('\n');
+      const blob = new Blob(['﻿' + head + body], { type: 'text/csv' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ebbinghaus_' + sessionId + '.csv'; a.click();
+    };
+  }
+  function drawChart(ill, ctl, fi, fc, pseI, pseC) {
+    const c = document.getElementById('chart'); while (c.firstChild) c.removeChild(c.firstChild);
+    const W = 720, H = 420, L = 70, R = 20, T = 48, B = 60;   // T: 上の余白（縦軸の見出しを軸の上に横書きで置く）
+    const x0 = CONFIG.levels[0] - 0.05, x1 = CONFIG.levels[CONFIG.levels.length - 1] + 0.05;
+    const X = x => L + (x - x0) / (x1 - x0) * (W - L - R), Y = p => T + (1 - p) * (H - T - B);
+    const el = (n, at, txt) => { const e = document.createElementNS(SVG_NS, n); for (const k in at) e.setAttribute(k, at[k]); if (txt != null) e.textContent = txt; c.appendChild(e); return e; };
+    // 軸・目盛
+    for (const p of [0, 0.25, 0.5, 0.75, 1]) { el('line', { x1: L, x2: W - R, y1: Y(p), y2: Y(p), stroke: '#DDE3E6' }); el('text', { x: L - 8, y: Y(p) + 5, 'text-anchor': 'end', 'font-size': 13, fill: '#8A8F94' }, Math.round(p * 100)); }
+    for (const k of CONFIG.levels) el('text', { x: X(k), y: H - B + 20, 'text-anchor': 'middle', 'font-size': 12, fill: '#8A8F94' }, k.toFixed(2));
+    el('line', { x1: L, x2: W - R, y1: Y(0), y2: Y(0), stroke: '#8A8F94' }); el('line', { x1: L, x2: L, y1: T, y2: Y(0), stroke: '#8A8F94' });
+    el('text', { x: (L + W - R) / 2, y: H - 14, 'text-anchor': 'middle', 'font-size': 14, fill: '#1B2A49', 'font-weight': 700 }, '比較刺激の大きさ（標準 = 1）');
+    el('text', { x: 12, y: T - 22, 'font-size': 14, fill: '#1B2A49', 'font-weight': 700 }, '「比較刺激の方が大きい」と答えた割合（%）');
+    el('line', { x1: X(1), x2: X(1), y1: T, y2: Y(0), stroke: '#8A8F94', 'stroke-dasharray': '3 4' });
+    el('line', { x1: L, x2: W - R, y1: Y(0.5), y2: Y(0.5), stroke: '#C98A2B', 'stroke-dasharray': '5 4' });
+    // 曲線
+    const curve = (f, col) => { let d = ''; for (let i = 0; i <= 100; i++) { const x = x0 + (x1 - x0) * i / 100; d += (i ? 'L' : 'M') + X(x).toFixed(1) + ',' + Y(Phi(f.a + f.b * x)).toFixed(1); } el('path', { d, fill: 'none', stroke: col, 'stroke-width': 3 }); };
+    curve(fc, '#A8B7DC'); curve(fi, '#3A5BA0');
+    // 点
+    ctl.forEach(l => { if (l.n) el('circle', { cx: X(l.x), cy: Y(l.y / l.n), r: 6, fill: '#fff', stroke: '#A8B7DC', 'stroke-width': 2.5 }); });
+    ill.forEach(l => { if (l.n) el('circle', { cx: X(l.x), cy: Y(l.y / l.n), r: 7, fill: '#3A5BA0' }); });
+    // PSE
+    el('line', { x1: X(pseI), x2: X(pseI), y1: Y(0.5), y2: Y(0), stroke: '#C98A2B', 'stroke-width': 2 });
+    el('text', { x: X(pseI), y: Y(0) - 6, 'text-anchor': 'middle', 'font-size': 13, fill: '#C98A2B', 'font-weight': 700 }, 'PSE ' + pseI.toFixed(3));
+    // 凡例
+    el('circle', { cx: L + 20, cy: T + 26, r: 7, fill: '#3A5BA0' }); el('text', { x: L + 34, y: T + 31, 'font-size': 13, fill: '#2B3A42' }, '錯視条件（小さな円で囲む）');
+    el('circle', { cx: L + 20, cy: T + 50, r: 6, fill: '#fff', stroke: '#A8B7DC', 'stroke-width': 2.5 }); el('text', { x: L + 34, y: T + 55, 'font-size': 13, fill: '#2B3A42' }, '統制条件（囲みなし）');
+  }
+
+  // 動作確認用：?auto=1 でランダム回答を自動入力（PSE≈0.92 の観察者を模擬）
+  if (params.get('auto')) {
+    window.__autoRun = function () {
+      document.getElementById('start-practice').click();
+      const tick = setInterval(() => {
+        if (screens.between.classList.contains('active')) { document.getElementById('start-main').click(); return; }
+        if (screens.result.classList.contains('active')) { clearInterval(tick); return; }
+        if (!accepting) return;
+        const pseTrue = current.cond === 'ill' ? 0.95 : 1.0, p = Phi((current.k - pseTrue) / 0.04);
+        const chooseCmp = Math.random() < p;
+        respond(chooseCmp ? current.side : (current.side === 'L' ? 'R' : 'L'));
+      }, 30);
+    };
+    CONFIG.fixationMs = 5; CONFIG.blankMs = 5; CONFIG.minRtMs = 0;
+    setTimeout(window.__autoRun, 200);
+  }
+})();
+</script>
+</body>
+</html>
