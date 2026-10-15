@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>左右のずれを聞く｜知覚・認知心理学 第5回</title>
+<!--
+  知覚・認知心理学 第5回 「聴覚」 体験ページA「左右のずれを聞く」（両耳間時間差 ITD による側方化）
+  ・単一の HTML ファイル。ネットワーク不要。Web Audio API で音を合成する。両耳にイヤホンが必要。
+  ・左右チェック（4 試行）→ 体験パート（ITD を選んで聞き比べる）→ 測定パート（任意、単一刺激「左？ 右？」、
+    ITD = 0, ±15, ±30, ±60, ±120, ±240 µs × 6 = 66 試行、完全ランダム）→ 結果（ラプス付き累積正規分布、PSE と JND）。
+  ・刺激：300〜1200 Hz の帯域ガウス雑音 300 ms（20 ms cos² ランプ）。ITD は FFT の位相シフトで全波形に与える（サンプル以下の遅延）。
+    毎試行新しい雑音。左右は同じ係数で正規化（ピーク ≤ 0.3）。ITD > 0 = 右耳先行。1 試行 = 1 つのステレオ AudioBuffer。
+  ・合成関数（ITD-SYNTH BEGIN〜END）は validate_itd.js と同一のコード。変更したら両方を同じにすること。
+  ・URL パラメータ  ?reps=1  で反復回数を減らせる（動作確認用）。 ?auto=1 で模擬観察者（σ = 40 µs）が自動回答する。
+  ・結果コードの書式は README.md と analysis_pitch.py を参照。
+-->
+<style>
+  :root {
+    --navy: #1B2A49; --indigo: #3A5BA0; --amber: #C98A2B; --grey: #8A8F94; --ink: #2B3A42; --light: #EEF1F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #fff; color: var(--ink);
+    font-family: "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans JP", "Noto Sans CJK JP", sans-serif;
+    -webkit-text-size-adjust: 100%; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  .screen { display: none; flex: 1; flex-direction: column; }
+  .screen.active { display: flex; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 40px; width: 100%; }
+  h1 { color: var(--navy); font-size: 1.5rem; margin: 0 0 0.3em; line-height: 1.3; }
+  h2 { color: var(--navy); font-size: 1.15rem; margin: 1.2em 0 0.4em; }
+  p, li { line-height: 1.7; font-size: 1rem; }
+  .lead { color: var(--indigo); font-weight: 700; }
+  .small { font-size: 0.85rem; color: var(--grey); }
+  .term { background: var(--light); color: var(--navy); padding: 0.05em 0.45em; border-radius: 5px; font-weight: 700; white-space: nowrap; }
+  ol, ul { padding-left: 1.4em; }
+  button { font: inherit; }
+  .btn { display: inline-block; background: var(--indigo); color: #fff; border: none; border-radius: 8px; padding: 0.75em 1.6em; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: #fff; color: var(--indigo); border: 2px solid var(--indigo); }
+  .btn.amber { background: var(--amber); }
+  .btn[disabled] { opacity: 0.4; cursor: default; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 1.2em; }
+  .card { background: var(--light); border-radius: 10px; padding: 14px 18px; margin: 0.8em 0; }
+  .card h3 { margin: 0 0 0.4em; color: var(--navy); font-size: 1rem; }
+  .choice { display: flex; flex-wrap: wrap; gap: 8px; margin: 0.4em 0; }
+  .choice button { background: #fff; color: var(--navy); border: 2px solid #C9D3D8; border-radius: 8px; padding: 0.5em 0.9em; font-size: 0.95rem; cursor: pointer; }
+  .choice button.sel { border-color: var(--indigo); background: var(--indigo); color: #fff; font-weight: 700; }
+  /* 体験パネル */
+  .itd-panel { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 0.6em 0; }
+  .itd-group { display: flex; flex-direction: column; gap: 4px; }
+  .itd-group .glabel { font-size: 0.8rem; color: var(--grey); font-weight: 700; text-align: center; }
+  .itd-group .gbtns { display: flex; gap: 4px; }
+  .itd-panel button { background: #fff; color: var(--navy); border: 2px solid #C9D3D8; border-radius: 6px; padding: 0.55em 0.3em; min-width: 46px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+  .itd-panel button.zero { border-color: var(--grey); min-width: 54px; }
+  .itd-panel button:active, .itd-panel button.playing { background: var(--amber); border-color: var(--amber); color: #fff; }
+  #head { width: 100%; max-width: 420px; height: auto; display: block; margin: 0.4em auto; }
+  #itd-info { text-align: center; font-weight: 700; color: var(--navy); font-size: 1.1rem; min-height: 1.8em; }
+  @media (max-width: 600px) { .itd-panel button { min-width: 42px; font-size: 0.75rem; padding: 0.55em 0.2em; } }
+
+  /* ---- 試行画面 ---- */
+  .trialscreen { position: relative; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  .progress { position: absolute; top: 0; left: 0; height: 5px; background: var(--indigo); width: 0; transition: width 0.15s; }
+  .question { text-align: center; color: var(--navy); font-weight: 700; font-size: 1.25rem; padding: 26px 16px 0; min-height: 3.2em; }
+  .question .sub { display: block; font-weight: 400; color: var(--grey); font-size: 0.85rem; margin-top: 0.25em; }
+  .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 140px; }
+  .speaker { width: 80px; height: 80px; border-radius: 50%; background: #DDE3E6; transition: background 0.08s, transform 0.08s; }
+  .speaker.on { background: var(--amber); transform: scale(1.12); }
+  .feedback { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 1.6rem; font-weight: 700; display: none; background: #fff; padding: 0.2em 0.8em; border-radius: 8px; }
+  .feedback.ok { color: var(--indigo); } .feedback.ng { color: var(--amber); }
+  .buttons { display: flex; justify-content: center; gap: 6vw; padding: 10px 16px 26px; }
+  .buttons .btn { min-width: 34vw; max-width: 260px; font-size: 1.15rem; padding: 0.9em 0; }
+  .hint { text-align: center; color: var(--grey); font-size: 0.85rem; padding-bottom: 12px; }
+
+  /* ---- 結果画面 ---- */
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 0.8em 0; }
+  .stat { flex: 1 1 150px; background: var(--light); border-radius: 10px; padding: 12px 14px; }
+  .stat .label { font-size: 0.8rem; font-weight: 700; color: var(--indigo); }
+  .stat .value { font-size: 1.9rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .stat .note { font-size: 0.78rem; color: var(--grey); }
+  .stat.amber .label { color: var(--amber); }
+  #chart { width: 100%; max-width: 720px; height: auto; display: block; margin: 0.5em auto; }
+  #code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.95rem; background: #fff; border: 2px dashed var(--indigo); border-radius: 8px; padding: 10px 12px; word-break: break-all; margin: 0.5em 0; user-select: all; -webkit-user-select: all; }
+  table.levels { border-collapse: collapse; font-size: 0.85rem; margin: 0.4em 0; }
+  table.levels th, table.levels td { border: 1px solid #C9D3D8; padding: 0.3em 0.55em; text-align: right; }
+  table.levels th { background: var(--navy); color: #fff; }
+  .tablewrap { overflow-x: auto; }
+  .warn { color: var(--amber); font-weight: 700; }
+  @media (max-width: 600px) {
+    h1 { font-size: 1.25rem; } p, li { font-size: 0.95rem; }
+    .question { font-size: 1.05rem; padding-top: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== 1. 教示 ===================== -->
+<section id="intro" class="screen active">
+  <div class="wrap">
+    <h1>左右のずれを聞く</h1>
+    <p class="lead">知覚・認知心理学 第5回　体験：両耳間時間差（ITD）と音の方向</p>
+    <p>同じ「ザッ」という雑音を左右の耳に届けますが、片方の耳に <strong>ほんの少し早く</strong>（100 万分の 1 秒＝1 µs の単位で）届けます。どれくらい小さなずれまで、音の方向として聞き分けられるかを体験します。</p>
+    <div class="card">
+      <h3>必ず確認してください</h3>
+      <ul>
+        <li><strong>両耳にイヤホン</strong>（またはヘッドホン）が必要です。<strong>R を右耳、L を左耳</strong>に。スピーカーではできません。</li>
+        <li>イヤホンは<strong>このページを開く前に</strong>つなぐ。iPhone は<strong>サイレントスイッチを切る</strong>。LINE などのアプリ内ブラウザではなく <strong>Safari や Chrome</strong> で開く。</li>
+        <li><strong>空間オーディオ（Spatial Audio / ステレオを空間化）</strong>・Dolby Atmos などの立体音響は <strong>オフ</strong>。iPhone：コントロールセンターで音量バーを長押し → 空間オーディオ → オフ。Windows：サウンド設定 → 空間サウンド → オフ。</li>
+        <li>アクセシビリティの<strong>モノラルオーディオはオフ</strong>、左右バランスは中央に。</li>
+        <li>イヤホンを片方しか着けていない、ゆるく着けている、は NG。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>音量合わせ</h3>
+      <p>下のボタンで雑音を鳴らし、<strong>はっきり聞こえて快適な音量</strong>に調節してください。</p>
+      <div class="row" style="margin-top:0.4em"><button class="btn secondary" id="ref-noise">雑音を鳴らす（1 秒）</button><span class="small" id="ref-msg"></span></div>
+    </div>
+    <div class="card">
+      <h3>機材（いま音を聞いているもの）</h3>
+      <div class="choice" id="dev-choice">
+        <button data-v="W">有線イヤホン</button>
+        <button data-v="BA">Bluetooth（Apple：AirPods など）</button>
+        <button data-v="BO">Bluetooth（その他）</button>
+        <button data-v="HP">ヘッドホン</button>
+        <button data-v="SP">スピーカー（この体験はできません）</button>
+      </div>
+    </div>
+    <p class="small" id="intro-msg">機材を選ぶと、左右チェックにすすめます。まず左右のイヤホンが正しいかを 4 回の音で確かめます。</p>
+    <div class="row"><button class="btn" id="to-lr" disabled>左右チェックにすすむ</button></div>
+  </div>
+</section>
+
+<!-- ===================== 2. 左右チェック ===================== -->
+<section id="lr" class="screen trialscreen">
+  <div class="progress" id="lr-progress"></div>
+  <div class="question">音はどちらの耳に聞こえた？<span class="sub" id="lr-counter"></span></div>
+  <div class="stage"><div class="speaker" id="lr-speaker"></div><div class="feedback" id="lr-feedback"></div></div>
+  <div class="buttons">
+    <button class="btn" data-lr="L" disabled>◀ 左の耳</button>
+    <button class="btn" data-lr="R" disabled>右の耳 ▶</button>
+  </div>
+  <div class="hint">← / → キーでも回答できます</div>
+</section>
+
+<section id="lrdone" class="screen">
+  <div class="wrap">
+    <h1>左右チェックの結果</h1>
+    <p id="lr-result"></p>
+    <div class="row" id="lr-buttons"></div>
+  </div>
+</section>
+
+<!-- ===================== 3. 体験パート ===================== -->
+<section id="demo" class="screen">
+  <div class="wrap">
+    <h1>体験：ずれの大きさを聞き比べる</h1>
+    <p>ボタンを押すと雑音が鳴ります。数字は <strong>右耳と左耳に届く時刻の差（µs = 100 万分の 1 秒）</strong>。<strong>0</strong> は同時（頭の真ん中に聞こえるはず）、<strong>600</strong> は頭の幅ぶんのずれ（ほぼ真横）。どこまで小さいずれが「左右の違い」として聞こえますか？</p>
+    <div class="itd-panel" id="itd-panel"></div>
+    <svg id="head" viewBox="0 0 420 150" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="itd-info">ボタンを押してください</div>
+    <p class="small">訓練した人は約 7 µs（0.000007 秒）のずれまで聞き分けます。未訓練で約 20〜60 µs。1 µs は音が約 0.3 mm 進む時間です。何度でも聞き比べてください。</p>
+    <h2>測定（任意・約 2.5 分）</h2>
+    <p>音が 1 回鳴るたびに「左？ 右？」を答えます（66 回）。終わると、あなたの「左右の聞き分けの閾」と、機材のくせ（中心のずれ）がわかります。</p>
+    <div class="row">
+      <button class="btn" id="start-measure">測定をはじめる</button>
+      <button class="btn secondary" id="skip-measure">測定せずに終わる</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 4. 測定 ===================== -->
+<section id="trial" class="screen trialscreen">
+  <div class="progress" id="progress"></div>
+  <div class="question">音は左？ 右？<span class="sub" id="trial-counter"></span></div>
+  <div class="stage"><div class="speaker" id="speaker"></div></div>
+  <div class="buttons">
+    <button class="btn" data-resp="L" disabled>◀ 左</button>
+    <button class="btn" data-resp="R" disabled>右 ▶</button>
+  </div>
+  <div class="hint">← / → キーでも回答できます。真ん中に聞こえても、必ずどちらかを選んでください</div>
+</section>
+
+<section id="end" class="screen">
+  <div class="wrap">
+    <h1>おつかれさまでした</h1>
+    <p>測定はしていないので、このページの結果コードはありません。Google Form には課題 B（音の高さ）の結果コードだけを貼り付けてください。</p>
+    <div class="row"><button class="btn secondary" id="back-demo">体験にもどる</button></div>
+  </div>
+</section>
+
+<!-- ===================== 5. 結果 ===================== -->
+<section id="result" class="screen">
+  <div class="wrap">
+    <h1>結果：あなたの心理測定関数</h1>
+    <p class="small">横軸は両耳間時間差 ITD（µs、右が正、目盛は対数）。縦軸は「右」と答えた割合。曲線は当てはめた累積正規分布（ラプス付き）。</p>
+    <svg id="chart" viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="stats">
+      <div class="stat amber"><div class="label">弁別閾（JND）</div><div class="value" id="r-jnd">–</div><div class="note">中心からこのずれで「右」と 75％ の確率で答えた</div></div>
+      <div class="stat"><div class="label">PSE（主観的な中心）</div><div class="value" id="r-pse">–</div><div class="note">この ITD で「左」「右」が半々。0 からのずれは機材や耳のくせ</div></div>
+      <div class="stat"><div class="label">ラプス率 λ</div><div class="value" id="r-lam">–</div><div class="note">聞き逃し・押し間違いの推定割合</div></div>
+    </div>
+    <p id="r-note"></p>
+    <p class="small">参考：訓練した人は約 7 µs、未訓練で約 20〜60 µs。頭の幅による最大の差は約 650 µs。66 試行の個人推定値には ±40〜50％ 程度の誤差があります。</p>
+    <h2>結果コード（Google Form に貼り付け）</h2>
+    <div id="code">–</div>
+    <div class="row">
+      <button class="btn" id="copy">結果コードをコピー</button>
+      <button class="btn secondary" id="csv">試行データ（CSV）を保存</button>
+      <span id="copied" class="small"></span>
+    </div>
+    <h2>水準ごとの回答</h2>
+    <div class="tablewrap" id="table"></div>
+    <p class="small">モデル：P(右) = λ + (1 − 2λ)·Φ((ITD − μ)/σ)。PSE = μ、JND = 0.674σ。μ・σ・λ を格子探索の最尤法で推定。</p>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  // ===================== CONFIG =====================
+  const params = new URLSearchParams(location.search);
+  const AUTO = params.get('auto') === '1';
+  const CONFIG = {
+    levels: [-240, -120, -60, -30, -15, 0, 15, 30, 60, 120, 240],   // ITD (µs)。結果コードの rc= はこの順
+    reps: parseInt(params.get('reps') || '6', 10),                  // 11 水準 × 6 = 66 試行
+    demoLevels: [-600, -240, -120, -60, -30, -15, 0, 15, 30, 60, 120, 240, 600],
+    lrN: 4,                       // 左右チェックの試行数（左・右 2 回ずつ）
+    durS: 0.3, rampS: 0.02, fLo: 300, fHi: 1200, peak: 0.3,
+    respDelayMs: 300,             // 音の終了後、回答を受け付けるまでの余裕（Bluetooth の遅れを吸収）
+    minRtMs: 150, itiMs: 500, feedbackMs: 600,
+    muGrid: { lo: -240, hi: 240, step: 1 },
+    sigGrid: { lo: 4, hi: 1000, n: 160 },
+    lamGrid: [0, 0.02, 0.04, 0.06, 0.08],
+    flatLevel: 240, flatCrit: 0.75,   // ±240 µs の正答率がこれ未満なら F（平ら）
+    offsetCrit: 60,                   // |PSE| がこれを超えれば O（中心のずれ）
+    version: 'ITD1'
+  };
+
+  // ===================== 画面切替 =====================
+  const screens = {};
+  document.querySelectorAll('.screen').forEach(s => screens[s.id] = s);
+  function show(id) { Object.values(screens).forEach(s => s.classList.remove('active')); screens[id].classList.add('active'); window.scrollTo(0, 0); }
+
+  // ===================== 環境情報 =====================
+  function detectUA() {
+    const u = navigator.userAgent || '';
+    const iOS = /iPhone|iPad|iPod/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1);
+    const os = iOS ? 'iOS' : /Android/.test(u) ? 'And' : /Macintosh/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Win' : 'Oth';
+    const br = /Firefox|FxiOS/.test(u) ? 'Fx' : /Edg|Chrome|CriOS/.test(u) ? 'Chr' : /Safari/.test(u) ? 'Saf' : 'Oth';
+    return os + '.' + br;
+  }
+  const UA = detectUA();
+
+  // === ITD-SYNTH BEGIN ===
+  // 基数 2 の FFT（in-place。re, im: Float64Array、長さは 2 のべき乗）。inverse = true で逆変換（1/N で正規化）
+  function fft(re, im, inverse) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = 2 * Math.PI / len * (inverse ? 1 : -1), wr = Math.cos(ang), wi = Math.sin(ang), half = len >> 1;
+      for (let i = 0; i < n; i += len) {
+        let cr = 1, ci = 0;
+        for (let j = 0; j < half; j++) {
+          const a = i + j, b = a + half;
+          const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+          re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+          const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+        }
+      }
+    }
+    if (inverse) for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
+  }
+  // 帯域ガウス雑音（fLo〜fHi Hz、dur 秒、cos² ランプ）に全波形 ITD を FFT の位相シフトで与える。
+  // itdSec > 0 = 右耳先行（L を +ITD/2 遅らせ、R を ITD/2 進める）。両チャンネルを同じ係数で正規化（ピーク = peak）。
+  // 返り値 { L, R, N, start, len }：Float32Array（長さ N）、刺激の開始サンプルと長さ。rnd は [0,1) の乱数関数（省略時 Math.random）
+  function synthITDNoise(fs, itdSec, opt, rnd) {
+    opt = opt || {}; rnd = rnd || Math.random;
+    const dur = opt.dur || 0.3, ramp = opt.ramp == null ? 0.02 : opt.ramp, fLo = opt.fLo || 300, fHi = opt.fHi || 1200, peak = opt.peak || 0.3, pad = opt.pad || 0.02;
+    let N = 1; while (N < (dur + 2 * pad) * fs) N <<= 1;
+    const re = new Float64Array(N), im = new Float64Array(N);
+    for (let i = 0; i < N; i += 2) {                       // 1. ガウス白色雑音（Box–Muller）
+      const r = Math.sqrt(-2 * Math.log(Math.max(rnd(), 1e-300))), th = 2 * Math.PI * rnd();
+      re[i] = r * Math.cos(th); if (i + 1 < N) re[i + 1] = r * Math.sin(th);
+    }
+    fft(re, im, false);                                     // 2. 帯域制限（帯域外・DC・Nyquist を 0）
+    const kLo = Math.ceil(fLo * N / fs), kHi = Math.floor(fHi * N / fs);
+    for (let k = 0; k <= N / 2; k++) {
+      if (k < kLo || k > kHi) { re[k] = im[k] = 0; if (k > 0 && k < N / 2) { re[N - k] = im[N - k] = 0; } }
+    }
+    fft(re, im, true);
+    const len = Math.round(dur * fs), start = Math.round((N - len) / 2), nr = Math.round(ramp * fs);
+    for (let i = 0; i < N; i++) {                           // 3. ゲート（バッファ中央、cos² ランプ、外側は 0）
+      const j = i - start; let e = 0;
+      if (j >= 0 && j < len) {
+        e = 1;
+        if (j < nr) { const s = Math.sin(Math.PI / 2 * j / nr); e = s * s; }
+        else if (j >= len - nr) { const s = Math.sin(Math.PI / 2 * (len - 1 - j) / nr); e = s * s; }
+      }
+      re[i] *= e; im[i] = 0;
+    }
+    fft(re, im, false);                                     // 4. 位相シフト：L = X·e^{−iπ f ITD}、R = X·e^{+iπ f ITD}
+    const Lr = new Float64Array(N), Li = new Float64Array(N), Rr = new Float64Array(N), Ri = new Float64Array(N);
+    for (let k = 1; k < N / 2; k++) {                       // k = 0 と N/2 は 0 のまま
+      const th = Math.PI * (k * fs / N) * itdSec, c = Math.cos(th), s = Math.sin(th);
+      const lr = re[k] * c + im[k] * s, li = im[k] * c - re[k] * s;
+      const rr = re[k] * c - im[k] * s, ri = im[k] * c + re[k] * s;
+      Lr[k] = lr; Li[k] = li; Rr[k] = rr; Ri[k] = ri;
+      Lr[N - k] = lr; Li[N - k] = -li; Rr[N - k] = rr; Ri[N - k] = -ri;   // 共役対称 → 実信号
+    }
+    fft(Lr, Li, true); fft(Rr, Ri, true);
+    let mx = 0;                                             // 5. 共通係数で正規化
+    for (let i = 0; i < N; i++) { const a = Math.abs(Lr[i]), b = Math.abs(Rr[i]); if (a > mx) mx = a; if (b > mx) mx = b; }
+    const g = mx > 0 ? peak / mx : 0;
+    const L = new Float32Array(N), R = new Float32Array(N);
+    for (let i = 0; i < N; i++) { L[i] = Lr[i] * g; R[i] = Rr[i] * g; }
+    return { L, R, N, start, len };
+  }
+  // === ITD-SYNTH END ===
+
+  // ===================== 音 =====================
+  let ctx = null, swapped = false;
+  function getCtx() {
+    if (ctx) return ctx;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  function resumeCtx() { const c = getCtx(); if (c && c.state !== 'running') { try { c.resume(); } catch (e) {} } return c; }
+  // 雑音を 1 つのステレオ AudioBuffer で再生。mode: 'both' | 'L' | 'R'（片耳のみ）。swapped なら左右を入れ替える。返り値：音の終了までの ms
+  function playNoise(itdUs, mode, durS) {
+    const c = resumeCtx();
+    const fs = c ? c.sampleRate : 48000;
+    const s = synthITDNoise(fs, itdUs * 1e-6, { dur: durS || CONFIG.durS, ramp: CONFIG.rampS, fLo: CONFIG.fLo, fHi: CONFIG.fHi, peak: CONFIG.peak });
+    let L = s.L, R = s.R;
+    if (mode === 'L') R = new Float32Array(s.N); else if (mode === 'R') L = new Float32Array(s.N);
+    if (swapped) { const t = L; L = R; R = t; }
+    if (c && !AUTO) {
+      try {
+        const b = c.createBuffer(2, s.N, fs); b.copyToChannel(L, 0); b.copyToChannel(R, 1);
+        const src = c.createBufferSource(); src.buffer = b; src.connect(c.destination); src.start();
+      } catch (e) {}
+    }
+    return AUTO ? 10 : s.N / fs * 1000;
+  }
+  document.getElementById('ref-noise').addEventListener('click', () => {
+    const c = resumeCtx();
+    if (!c) { document.getElementById('ref-msg').textContent = 'この環境では音を再生できません。別のブラウザで開いてください。'; return; }
+    playNoise(0, 'both', 1.0);
+    let msg = '本番と同じ音量の雑音です。頭の真ん中に聞こえるはずです。';
+    try { if (c.destination.maxChannelCount < 2) msg = '注意：この出力はステレオではないようです（左右の違いが出ません）。'; } catch (e) {}
+    document.getElementById('ref-msg').textContent = msg;
+  });
+
+  // ===================== 設定 =====================
+  const sel = { dev: null };
+  (function () {
+    const box = document.getElementById('dev-choice');
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      box.querySelectorAll('button').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); sel.dev = b.getAttribute('data-v');
+      document.getElementById('to-lr').disabled = false;
+      document.getElementById('intro-msg').textContent = sel.dev === 'SP' ? 'スピーカーでは左右の時間差を聞くことはできません。イヤホンを用意するか、見学してください。' : '準備ができました。左右チェックにすすんでください。';
+    }));
+  })();
+
+  // ===================== 左右チェック =====================
+  let lrTrials = [], lrIdx = 0, lrCorrect = 0, lrAccepting = false, lrCurrent = null, lrChecks = 0, timers = [];
+  function later(f, ms) { timers.push(setTimeout(f, ms)); }
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  const lrButtons = document.querySelectorAll('[data-lr]');
+  const lrSpeaker = document.getElementById('lr-speaker'), lrFeedback = document.getElementById('lr-feedback');
+  function startLR() {
+    lrTrials = shuffle(['L', 'R', 'L', 'R'].slice(0, CONFIG.lrN)); lrIdx = 0; lrCorrect = 0; lrChecks++;
+    resumeCtx(); show('lr'); runLR();
+  }
+  function runLR() {
+    if (lrIdx >= lrTrials.length) { finishLR(); return; }
+    lrCurrent = lrTrials[lrIdx]; lrAccepting = false; lrButtons.forEach(b => b.disabled = true); lrFeedback.style.display = 'none';
+    document.getElementById('lr-counter').textContent = (lrIdx + 1) + ' / ' + lrTrials.length;
+    document.getElementById('lr-progress').style.width = (100 * lrIdx / lrTrials.length) + '%';
+    const dur = playNoise(0, lrCurrent);
+    lrSpeaker.classList.add('on'); later(() => lrSpeaker.classList.remove('on'), AUTO ? 5 : CONFIG.durS * 1000);
+    later(() => { lrAccepting = true; lrButtons.forEach(b => b.disabled = false); }, dur + (AUTO ? 0 : CONFIG.respDelayMs));
+  }
+  function respondLR(r) {
+    if (!lrAccepting) return;
+    lrAccepting = false; lrButtons.forEach(b => b.disabled = true);
+    const ok = r === lrCurrent; lrCorrect += ok ? 1 : 0;
+    lrFeedback.textContent = ok ? '正解' : '不正解（' + (lrCurrent === 'L' ? '左' : '右') + 'の耳に出しました）';
+    lrFeedback.className = 'feedback ' + (ok ? 'ok' : 'ng'); lrFeedback.style.display = 'block';
+    lrIdx++;
+    later(runLR, AUTO ? 5 : CONFIG.feedbackMs + CONFIG.itiMs);
+  }
+  function finishLR() {
+    const all = lrCorrect === lrTrials.length;
+    const res = document.getElementById('lr-result'), box = document.getElementById('lr-buttons');
+    box.innerHTML = '';
+    const mk = (label, cls, f) => { const b = document.createElement('button'); b.className = 'btn ' + cls; b.textContent = label; b.addEventListener('click', f); box.appendChild(b); return b; };
+    if (all) {
+      res.innerHTML = '<strong>' + lrCorrect + ' / ' + lrTrials.length + ' 正解。</strong>左右は正しく届いています' + (swapped ? '（ソフトで左右を入れ替えています）' : '') + '。';
+      mk('体験パートへ', '', () => show('demo'));
+    } else {
+      res.innerHTML = '<strong>' + lrCorrect + ' / ' + lrTrials.length + ' 正解。</strong><span class="warn">左右が逆になっているか、片耳しか聞こえていない、またはモノラル設定の可能性があります。</span><br>' +
+        'イヤホンの L/R を確かめてください。L/R が逆なら「左右を入れ替える」を押すと、ソフトで左右を反転してもう一度チェックします。両耳で同じ音が聞こえた場合は、モノラルオーディオや空間オーディオの設定を確認してください。';
+      mk('左右を入れ替えてもう一度', '', () => { swapped = !swapped; startLR(); });
+      mk('そのままもう一度', 'secondary', startLR);
+      mk('このまま体験パートへ', 'secondary', () => show('demo'));
+    }
+    show('lrdone');
+  }
+  document.getElementById('to-lr').addEventListener('click', startLR);
+  lrButtons.forEach(el => el.addEventListener('click', e => { e.preventDefault(); respondLR(el.getAttribute('data-lr')); }));
+
+  // ===================== 体験パート =====================
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const Ud = x => Math.sign(x) * Math.log2(1 + Math.abs(x) / 15);   // 符号付き対数の位置
+  function drawHead(itd) {
+    const c = document.getElementById('head'); while (c.firstChild) c.removeChild(c.firstChild);
+    const el = (n, at, txt) => { const e = document.createElementNS(SVG_NS, n); for (const k in at) e.setAttribute(k, at[k]); if (txt != null) e.textContent = txt; c.appendChild(e); return e; };
+    const cx = 210, cy = 75;
+    el('circle', { cx, cy, r: 50, fill: '#EEF1F8', stroke: '#8A8F94', 'stroke-width': 2 });
+    el('ellipse', { cx: cx - 52, cy, rx: 8, ry: 14, fill: '#DDE3E6', stroke: '#8A8F94' }); el('ellipse', { cx: cx + 52, cy, rx: 8, ry: 14, fill: '#DDE3E6', stroke: '#8A8F94' });
+    el('text', { x: cx - 52, y: cy + 36, 'text-anchor': 'middle', 'font-size': 12, fill: '#8A8F94' }, 'L'); el('text', { x: cx + 52, y: cy + 36, 'text-anchor': 'middle', 'font-size': 12, fill: '#8A8F94' }, 'R');
+    el('line', { x1: 30, x2: 390, y1: cy, y2: cy, stroke: '#C9D3D8', 'stroke-dasharray': '3 4' });
+    if (itd != null) {
+      const px = cx + Ud(itd) / Ud(600) * 170;
+      el('circle', { cx: px, cy, r: 12, fill: '#C98A2B' });
+      el('text', { x: px, y: cy - 20, 'text-anchor': 'middle', 'font-size': 13, fill: '#1B2A49', 'font-weight': 700 }, itd === 0 ? '同時' : (itd > 0 ? '右耳が ' : '左耳が ') + Math.abs(itd) + ' µs 先');
+    }
+  }
+  (function buildPanel() {
+    const panel = document.getElementById('itd-panel');
+    const groups = [
+      { label: '◀ 左耳が先（µs）', vals: CONFIG.demoLevels.filter(v => v < 0) },
+      { label: '同時', vals: [0] },
+      { label: '右耳が先（µs）▶', vals: CONFIG.demoLevels.filter(v => v > 0) }
+    ];
+    groups.forEach(gr => {
+      const g = document.createElement('div'); g.className = 'itd-group';
+      const lab = document.createElement('div'); lab.className = 'glabel'; lab.textContent = gr.label; g.appendChild(lab);
+      const bx = document.createElement('div'); bx.className = 'gbtns'; g.appendChild(bx);
+      gr.vals.forEach(v => {
+        const b = document.createElement('button');
+        b.textContent = v === 0 ? '0' : (v < 0 ? 'L ' : 'R ') + Math.abs(v); if (v === 0) b.className = 'zero';
+        b.addEventListener('click', () => {
+          resumeCtx(); playNoise(v, 'both');
+          panel.querySelectorAll('button').forEach(x => x.classList.remove('playing')); b.classList.add('playing');
+          later(() => b.classList.remove('playing'), CONFIG.durS * 1000);
+          drawHead(v);
+          document.getElementById('itd-info').textContent = v === 0 ? 'ITD = 0 µs（同時）。真ん中に聞こえましたか？' : 'ITD = ' + Math.abs(v) + ' µs：' + (v > 0 ? '右' : '左') + '耳に ' + Math.abs(v) + ' µs（' + (Math.abs(v) / 1000).toFixed(3) + ' ミリ秒）早く届きました。';
+        });
+        bx.appendChild(b);
+      });
+      panel.appendChild(g);
+    });
+    drawHead(null);
+  })();
+  document.getElementById('skip-measure').addEventListener('click', () => show('end'));
+  document.getElementById('back-demo').addEventListener('click', () => show('demo'));
+
+  // ===================== 測定 =====================
+  const progress = document.getElementById('progress'), counter = document.getElementById('trial-counter'), speaker = document.getElementById('speaker');
+  const respButtons = document.querySelectorAll('#trial [data-resp]');
+  let trials = [], idx = 0, data = [], accepting = false, tEnable = 0, current = null;
+  const sessionId = Math.random().toString(36).slice(2, 6);
+  function buildTrials() { const t = []; for (const itd of CONFIG.levels) for (let r = 0; r < CONFIG.reps; r++) t.push({ itd }); return shuffle(t); }
+  function runTrial() {
+    if (idx >= trials.length) { showResult(); return; }
+    current = trials[idx]; accepting = false; respButtons.forEach(b => b.disabled = true);
+    counter.textContent = (idx + 1) + ' / ' + trials.length;
+    progress.style.width = (100 * idx / trials.length) + '%';
+    const dur = playNoise(current.itd, 'both');
+    speaker.classList.add('on'); later(() => speaker.classList.remove('on'), AUTO ? 5 : CONFIG.durS * 1000);
+    later(() => { tEnable = performance.now(); accepting = true; respButtons.forEach(b => b.disabled = false); }, dur + (AUTO ? 0 : CONFIG.respDelayMs));
+  }
+  function respond(resp) {   // 'L' | 'R'
+    if (!accepting) return;
+    const rt = performance.now() - tEnable;
+    if (!AUTO && rt < CONFIG.minRtMs) return;
+    accepting = false; respButtons.forEach(b => b.disabled = true);
+    data.push({ trial: idx + 1, itd: current.itd, resp, right: resp === 'R' ? 1 : 0, rt: Math.round(rt) });
+    idx++;
+    later(runTrial, AUTO ? 5 : CONFIG.itiMs);
+  }
+  document.getElementById('start-measure').addEventListener('click', () => { trials = buildTrials(); idx = 0; data = []; resumeCtx(); show('trial'); runTrial(); });
+  respButtons.forEach(el => el.addEventListener('click', e => { e.preventDefault(); respond(el.getAttribute('data-resp')); }));
+  document.addEventListener('keydown', e => {
+    if (screens.trial.classList.contains('active')) {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); respond('L'); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); respond('R'); }
+    } else if (screens.lr.classList.contains('active')) {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); respondLR('L'); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); respondLR('R'); }
+    }
+  });
+
+  // ===================== 解析：ラプス付き累積正規分布の格子探索 MLE =====================
+  function Phi(z) {
+    const t = 1 / (1 + 0.2316419 * Math.abs(z));
+    const d = 0.3989422804014327 * Math.exp(-z * z / 2);
+    const p = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+    return z >= 0 ? 1 - p : p;
+  }
+  function fitLapseGauss(levels, g) {
+    const sig = []; for (let i = 0; i < g.sigGrid.n; i++) sig.push(g.sigGrid.lo * Math.pow(g.sigGrid.hi / g.sigGrid.lo, i / (g.sigGrid.n - 1)));
+    let best = { ll: -Infinity, mu: 0, sigma: sig[0], lam: 0 };
+    const xs = levels.map(l => l.x), ys = levels.map(l => l.y), ns = levels.map(l => l.n);
+    const nMu = Math.round((g.muGrid.hi - g.muGrid.lo) / g.muGrid.step) + 1;
+    for (const lam of g.lamGrid) for (const s of sig) for (let im = 0; im < nMu; im++) {
+      const mu = g.muGrid.lo + im * g.muGrid.step;
+      let ll = 0;
+      for (let i = 0; i < xs.length; i++) {
+        if (!ns[i]) continue;
+        let p = lam + (1 - 2 * lam) * Phi((xs[i] - mu) / s);
+        p = Math.min(Math.max(p, 1e-6), 1 - 1e-6);
+        ll += ys[i] * Math.log(p) + (ns[i] - ys[i]) * Math.log(1 - p);
+      }
+      if (ll > best.ll) best = { ll, mu, sigma: s, lam };
+    }
+    best.edge = (best.sigma === sig[0] || best.sigma === sig[sig.length - 1] || best.mu === g.muGrid.lo || best.mu === g.muGrid.hi);
+    return best;
+  }
+  function summarize() {
+    return CONFIG.levels.map(itd => { const rows = data.filter(d => d.itd === itd); return { x: itd, n: rows.length, y: rows.reduce((s, d) => s + d.right, 0) }; });
+  }
+  function checksum(s) { let sum = 0; for (let i = 0; i < s.length; i++) sum += s.charCodeAt(i); return (sum % 36).toString(36); }
+
+  // ===================== 結果表示 =====================
+  function fmt(v, d) { return Number.isFinite(v) ? v.toFixed(d) : '–'; }
+  function showResult() {
+    show('result');
+    const lv = summarize();
+    const fit = fitLapseGauss(lv, CONFIG);
+    const jnd = 0.674 * fit.sigma;
+    let ok = 0, nn = 0;
+    lv.forEach(l => { if (Math.abs(l.x) === CONFIG.flatLevel) { nn += l.n; ok += l.x > 0 ? l.y : l.n - l.y; } });
+    const accTop = nn ? ok / nn : 0;
+    const flat = accTop < CONFIG.flatCrit, offset = !flat && Math.abs(fit.mu) > CONFIG.offsetCrit;
+    const flags = (flat ? 'F' : '') + (offset ? 'O' : '');
+    document.getElementById('r-jnd').textContent = flat ? '–' : fmt(jnd, 0) + ' µs';
+    document.getElementById('r-pse').textContent = flat ? '–' : (fit.mu > 0 ? '+' : '') + fmt(fit.mu, 0) + ' µs';
+    document.getElementById('r-lam').textContent = (fit.lam * 100).toFixed(0) + ' %';
+    let note = '';
+    if (flat) note += '<span class="warn">注意：</span>いちばん差の大きい ±240 µs でも正答率が ' + Math.round(accTop * 100) + '％ でした。左右の時間差が耳まで届いていない可能性があります（空間オーディオ・モノラル設定、片耳だけ、Bluetooth イヤホンの左右同期、周囲の騒音など）。この場合、曲線の数値は解釈しないでください。';
+    else {
+      if (fit.edge) note += '<span class="warn">注意：</span>推定値が探索範囲の端に当たっています。 ';
+      if (offset) note += '<span class="warn">中心のずれ：</span>PSE が ' + (fit.mu > 0 ? '右' : '左') + 'に ' + Math.abs(Math.round(fit.mu)) + ' µs ずれています。音が同時に届いても「' + (fit.mu > 0 ? '左' : '右') + '」に聞こえやすかったということです。機材のくせ（Bluetooth イヤホンの左右のタイミングのずれ、左右の音量差）や、耳の左右差、回答のくせが考えられます。このずれは「悪い」ことではなく、測定のしくみを示す結果です。 ';
+      note += 'JND が小さいほど、小さな時間差を聞き分けられたことになります。';
+    }
+    document.getElementById('r-note').innerHTML = note;
+    let code = [CONFIG.version, 'pse=' + fmt(fit.mu, 0), 'jnd=' + fmt(jnd, 0), 'lam=' + fit.lam, 'n=' + data.length,
+                'rc=' + lv.map(l => l.y).join('.'), 'lr=' + lrCorrect + '/' + CONFIG.lrN, 'sw=' + (swapped ? 1 : 0), 'dev=' + sel.dev,
+                'sr=' + (ctx ? (ctx.sampleRate / 1000) : 0), 'ua=' + UA, 'flag=' + (flags || '-'), 'id=' + sessionId].join('|');
+    code += '|ck=' + checksum(code);
+    document.getElementById('code').textContent = code;
+    drawChart(lv, fit, flat);
+    let html = '<table class="levels"><tr><th>ITD (µs)</th>' + CONFIG.levels.map(k => '<th>' + (k > 0 ? '+' : '') + k + '</th>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">「右」の回数</td>' + lv.map(l => '<td>' + l.y + ' / ' + l.n + '</td>').join('') + '</tr></table>';
+    document.getElementById('table').innerHTML = html;
+    document.getElementById('copy').onclick = async () => {
+      try { await navigator.clipboard.writeText(code); document.getElementById('copied').textContent = 'コピーしました。Google Form に貼り付けてください。'; }
+      catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.getElementById('copied').textContent = '選択したので、そのままコピーしてください。'; }
+    };
+    document.getElementById('csv').onclick = () => {
+      const head = 'trial,itd_us,resp,right,rt_ms,swapped\n';
+      const body = data.map(d => [d.trial, d.itd, d.resp, d.right, d.rt, swapped ? 1 : 0].join(',')).join('\n');
+      const blob = new Blob(['﻿' + head + body], { type: 'text/csv' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'itd_' + sessionId + '.csv'; a.click();
+    };
+  }
+  function drawChart(lv, fit, flat) {
+    const c = document.getElementById('chart'); while (c.firstChild) c.removeChild(c.firstChild);
+    const W = 720, H = 420, L = 70, R = 20, T = 48, B = 60;
+    const xmax = CONFIG.levels[CONFIG.levels.length - 1] * 1.3, u0 = Ud(-xmax), u1 = Ud(xmax);
+    const X = x => L + (Ud(x) - u0) / (u1 - u0) * (W - L - R), Y = p => T + (1 - p) * (H - T - B);
+    const el = (n, at, txt) => { const e = document.createElementNS(SVG_NS, n); for (const k in at) e.setAttribute(k, at[k]); if (txt != null) e.textContent = txt; c.appendChild(e); return e; };
+    for (const p of [0, 0.25, 0.5, 0.75, 1]) { el('line', { x1: L, x2: W - R, y1: Y(p), y2: Y(p), stroke: '#DDE3E6' }); el('text', { x: L - 8, y: Y(p) + 5, 'text-anchor': 'end', 'font-size': 13, fill: '#8A8F94' }, Math.round(p * 100)); }
+    for (const k of CONFIG.levels) el('text', { x: X(k), y: H - B + 20, 'text-anchor': 'middle', 'font-size': 11, fill: '#8A8F94' }, (k > 0 ? '+' : '') + k);
+    el('line', { x1: L, x2: W - R, y1: Y(0), y2: Y(0), stroke: '#8A8F94' }); el('line', { x1: L, x2: L, y1: T, y2: Y(0), stroke: '#8A8F94' });
+    el('text', { x: (L + W - R) / 2, y: H - 14, 'text-anchor': 'middle', 'font-size': 14, fill: '#1B2A49', 'font-weight': 700 }, '両耳間時間差 ITD（µs；正 = 右耳が先）');
+    el('text', { x: 12, y: T - 22, 'font-size': 14, fill: '#1B2A49', 'font-weight': 700 }, '「右」と答えた割合（%）');
+    el('line', { x1: X(0), x2: X(0), y1: T, y2: Y(0), stroke: '#8A8F94', 'stroke-dasharray': '3 4' });
+    el('line', { x1: L, x2: W - R, y1: Y(0.5), y2: Y(0.5), stroke: '#C98A2B', 'stroke-dasharray': '5 4' });
+    let d = '';
+    for (let i = 0; i <= 240; i++) { const x = -xmax + 2 * xmax * i / 240; const p = fit.lam + (1 - 2 * fit.lam) * Phi((x - fit.mu) / fit.sigma); d += (i ? 'L' : 'M') + X(x).toFixed(1) + ',' + Y(p).toFixed(1); }
+    el('path', { d, fill: 'none', stroke: flat ? '#A8B7DC' : '#3A5BA0', 'stroke-width': 3 });
+    lv.forEach(l => { if (l.n) el('circle', { cx: X(l.x), cy: Y(l.y / l.n), r: 7, fill: '#3A5BA0', stroke: '#fff', 'stroke-width': 2 }); });
+    if (!flat) {
+      const x75 = fit.mu + 0.674 * fit.sigma;
+      el('line', { x1: X(fit.mu), x2: X(fit.mu), y1: Y(0.5), y2: Y(0), stroke: '#C98A2B', 'stroke-width': 2 });
+      el('text', { x: X(fit.mu), y: Y(0) - 6, 'text-anchor': 'middle', 'font-size': 13, fill: '#C98A2B', 'font-weight': 700 }, 'PSE ' + fit.mu.toFixed(0));
+      el('line', { x1: X(fit.mu), x2: X(x75), y1: Y(0.75), y2: Y(0.75), stroke: '#C98A2B', 'stroke-width': 2 });
+      el('line', { x1: X(x75), x2: X(x75), y1: Y(0.75), y2: Y(0), stroke: '#C98A2B', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
+      el('text', { x: X(x75) + 6, y: Y(0.75) - 6, 'font-size': 13, fill: '#C98A2B', 'font-weight': 700 }, 'JND ' + (0.674 * fit.sigma).toFixed(0) + ' µs');
+    }
+  }
+
+  // 動作確認用：?auto=1 で模擬観察者（σ = 40 µs, μ = 0, λ = 0.02）が自動回答。左右チェックは正解を返す
+  if (AUTO) {
+    window.__autoRun = function () {
+      document.querySelector('#dev-choice [data-v="W"]').click();
+      document.getElementById('to-lr').click();
+      const tick = setInterval(() => {
+        if (screens.lr.classList.contains('active') && lrAccepting) { respondLR(lrCurrent); return; }
+        if (screens.lrdone.classList.contains('active')) { document.querySelector('#lr-buttons .btn').click(); return; }
+        if (screens.demo.classList.contains('active')) { document.querySelector('#itd-panel button').click(); document.getElementById('start-measure').click(); return; }
+        if (screens.result.classList.contains('active')) { clearInterval(tick); return; }
+        if (!accepting) return;
+        const p = 0.02 + 0.96 * Phi(current.itd / 40);
+        respond(Math.random() < p ? 'R' : 'L');
+      }, 15);
+    };
+    setTimeout(window.__autoRun, 200);
+  }
+})();
+</script>
+</body>
+</html>
