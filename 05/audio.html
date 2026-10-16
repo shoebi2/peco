@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第5回 聴覚：授業で鳴らした音｜知覚・認知心理学</title>
+<style>
+  :root { --navy: #1B2A49; --indigo: #3A5BA0; --amber: #C98A2B; --grey: #8A8F94; --ink: #2B3A42; --light: #EEF1F8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font-family: "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif; -webkit-text-size-adjust: 100%; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 48px; }
+  h1 { color: var(--navy); font-size: 1.45rem; margin: 0 0 0.3em; line-height: 1.3; }
+  h2 { color: var(--navy); font-size: 1.1rem; margin: 0.2em 0 0.4em; }
+  p { line-height: 1.7; font-size: 0.98rem; margin: 0.4em 0 0.8em; }
+  .small { font-size: 0.85rem; color: var(--grey); }
+  .card { background: var(--light); border-radius: 10px; padding: 16px 18px; margin: 1em 0; }
+  .tag { display: inline-block; background: var(--amber); color: #fff; font-weight: 700; font-size: 0.8rem; border-radius: 6px; padding: 0.15em 0.6em; margin-bottom: 0.4em; }
+  .items { display: flex; flex-direction: column; gap: 8px; }
+  .item { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 8px; padding: 8px 12px; flex-wrap: wrap; }
+  .lab { color: var(--navy); font-weight: 700; min-width: 11em; font-size: 0.95rem; }
+  audio { flex: 1; min-width: 200px; height: 36px; }
+  .dl { color: var(--grey); font-size: 0.8rem; text-decoration: none; border: 1px solid #C9D3D8; border-radius: 6px; padding: 0.15em 0.6em; }
+  .warn { color: var(--amber); font-weight: 700; }
+  a { color: var(--indigo); }
+  nav a { margin-right: 1.2em; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>第5回「聴覚」：授業で鳴らした音</h1>
+  <p class="small">知覚・認知心理学（2026年度）　担当：弘光健太郎。音はすべて計算で合成したもので、著作物は含みません。</p>
+  <nav><a href="./">課題B：音の高さの聞き分け</a><a href="itd.html">体験A：左右のずれを聞く</a></nav>
+  <p>スライドのスピーカーのアイコンで鳴らした音です。<strong>イヤホンかヘッドホン</strong>で、音量は「はっきり聞こえて快適」に合わせてから聞いてください。<span class="warn">高い音（8〜18 kHz）は音量を上げすぎないこと。</span>聞こえないのは耳の上限で、音は鳴っています。</p>
+<section class="card">
+  <div class="tag">スライド P12</div>
+  <h2>基音を抜いても、高さは変わらない</h2>
+  <p>①は純音 200 Hz。②は 200 Hz とその 2〜10 倍の倍音を重ねた音。③は②から基音 200 Hz だけを抜いた音、④はさらに 2・3 倍音も抜いた音。③④に 200 Hz の成分はないのに、高さは②と同じに聞こえます（ミッシングファンダメンタル）。</p>
+  <div class="items"><div class="item"><div class="lab">① 純音200 Hz</div><audio controls preload="none" src="audio/audio1a_pure200.wav"></audio><a class="dl" href="audio/audio1a_pure200.wav" download>wav</a></div><div class="item"><div class="lab">② 倍音1〜10（基音あり）</div><audio controls preload="none" src="audio/audio1b_harm1-10.wav"></audio><a class="dl" href="audio/audio1b_harm1-10.wav" download>wav</a></div><div class="item"><div class="lab">③ 基音を抜く</div><audio controls preload="none" src="audio/audio1c_harm2-10.wav"></audio><a class="dl" href="audio/audio1c_harm2-10.wav" download>wav</a></div><div class="item"><div class="lab">④ さらに抜く（4〜10）</div><audio controls preload="none" src="audio/audio1d_harm4-10.wav"></audio><a class="dl" href="audio/audio1d_harm4-10.wav" download>wav</a></div></div>
+</section>
+<section class="card">
+  <div class="tag">スライド P20</div>
+  <h2>何Hzまで聞こえる？</h2>
+  <p>同じ振幅の純音（1 秒）。高い音は聞こえなくても鳴っています。<strong>音量を上げすぎないでください。</strong>イヤホンやスピーカーによっては 16 kHz 以上が出ないことがあります。年齢とともに聞こえる上限は下がります（スライドの図13）。</p>
+  <div class="items"><div class="item"><div class="lab">1 kHz（確認）</div><audio controls preload="none" src="audio/audio2_1k.wav"></audio><a class="dl" href="audio/audio2_1k.wav" download>wav</a></div><div class="item"><div class="lab">8 kHz</div><audio controls preload="none" src="audio/audio2_8k.wav"></audio><a class="dl" href="audio/audio2_8k.wav" download>wav</a></div><div class="item"><div class="lab">10 kHz</div><audio controls preload="none" src="audio/audio2_10k.wav"></audio><a class="dl" href="audio/audio2_10k.wav" download>wav</a></div><div class="item"><div class="lab">12 kHz</div><audio controls preload="none" src="audio/audio2_12k.wav"></audio><a class="dl" href="audio/audio2_12k.wav" download>wav</a></div><div class="item"><div class="lab">14 kHz</div><audio controls preload="none" src="audio/audio2_14k.wav"></audio><a class="dl" href="audio/audio2_14k.wav" download>wav</a></div><div class="item"><div class="lab">16 kHz</div><audio controls preload="none" src="audio/audio2_16k.wav"></audio><a class="dl" href="audio/audio2_16k.wav" download>wav</a></div><div class="item"><div class="lab">18 kHz</div><audio controls preload="none" src="audio/audio2_18k.wav"></audio><a class="dl" href="audio/audio2_18k.wav" download>wav</a></div></div>
+</section>
+<section class="card">
+  <div class="tag">スライド P24</div>
+  <h2>同じ高さ、違う音。逆再生すると？</h2>
+  <p>①〜③は同じ 440 Hz、同じ大きさで、違いは倍音の配合だけ。④ははじいた弦の音（計算で合成）、⑤は④を逆から再生しただけです。倍音は同じなのに、立ち上がりが変わると別の楽器に聞こえます。</p>
+  <div class="items"><div class="item"><div class="lab">① 純音</div><audio controls preload="none" src="audio/audio3a_sine.wav"></audio><a class="dl" href="audio/audio3a_sine.wav" download>wav</a></div><div class="item"><div class="lab">② 奇数倍音だけ</div><audio controls preload="none" src="audio/audio3b_odd.wav"></audio><a class="dl" href="audio/audio3b_odd.wav" download>wav</a></div><div class="item"><div class="lab">③ 全部の倍音</div><audio controls preload="none" src="audio/audio3c_saw.wav"></audio><a class="dl" href="audio/audio3c_saw.wav" download>wav</a></div><div class="item"><div class="lab">④ はじいた音</div><audio controls preload="none" src="audio/audio3d_pluck.wav"></audio><a class="dl" href="audio/audio3d_pluck.wav" download>wav</a></div><div class="item"><div class="lab">⑤ ④の逆再生</div><audio controls preload="none" src="audio/audio3e_pluck_reversed.wav"></audio><a class="dl" href="audio/audio3e_pluck_reversed.wav" download>wav</a></div></div>
+</section>
+<section class="card">
+  <div class="tag">補足資料</div>
+  <h2>無限に上がり続ける音：シェパードトーン</h2>
+  <p>1 オクターブずつ違う音を何段も重ね、中くらいの高さを最も強くした音。12 段上がると最初の音に戻るのに、ずっと上がり続けて聞こえます（Shepard 1964）。</p>
+  <div class="items"><div class="item"><div class="lab">シェパードトーン（上昇）</div><audio controls preload="none" src="audio/audio4_shepard_up.wav"></audio><a class="dl" href="audio/audio4_shepard_up.wav" download>wav</a></div></div>
+</section>
+<section class="card">
+  <div class="tag">補足資料</div>
+  <h2>途切れた音がつながって聞こえる：連続聴</h2>
+  <p>①は 1 kHz の音が途切れ途切れに鳴ります。②は途切れた所を雑音で埋めただけ。②では音が鳴り続けて聞こえます（連続聴）。</p>
+  <div class="items"><div class="item"><div class="lab">① 途切れた音</div><audio controls preload="none" src="audio/audio5a_tone_gaps.wav"></audio><a class="dl" href="audio/audio5a_tone_gaps.wav" download>wav</a></div><div class="item"><div class="lab">② 隙間を雑音で埋める</div><audio controls preload="none" src="audio/audio5b_tone_gaps_noise.wav"></audio><a class="dl" href="audio/audio5b_tone_gaps_noise.wav" download>wav</a></div></div>
+</section>
+<section class="card">
+  <div class="tag">補足資料</div>
+  <h2>1本の旋律が2本に分かれる：音脈分凝</h2>
+  <p>高い音と低い音を交互に鳴らします。①はゆっくり・差が小さい → 1 本の「ギャロップ」に聞こえる。②は速く・差が大きい → 高い列と低い列の 2 本に分かれて聞こえる（音脈分凝）。</p>
+  <div class="items"><div class="item"><div class="lab">① ゆっくり・差が小さい</div><audio controls preload="none" src="audio/audio6a_gallop_slow_small.wav"></audio><a class="dl" href="audio/audio6a_gallop_slow_small.wav" download>wav</a></div><div class="item"><div class="lab">② 速く・差が大きい</div><audio controls preload="none" src="audio/audio6b_gallop_fast_large.wav"></audio><a class="dl" href="audio/audio6b_gallop_fast_large.wav" download>wav</a></div></div>
+</section>
+  <p class="small">ファイルは 44.1 kHz・16 bit・モノラルの wav。スマートフォンのスピーカーでは低い音（200 Hz）や高い音（16 kHz 以上）がほとんど出ないことがあります。</p>
+</div>
+</body>
+</html>
