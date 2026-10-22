@@ -474,7 +474,7 @@
     const flat = accTop < CONFIG.flatCrit;
     const flags = (flat ? 'F' : '') + (practiceCorrect < CONFIG.practicePass ? 'P' : '');
     document.getElementById('r-jnd').textContent = flat ? '–' : fmt(jnd, 1) + ' Hz';
-    document.getElementById('r-jnd-note').textContent = flat ? '±48 Hz でも正答率が 75％ 未満なので、閾は推定できません' : '＝ ' + fmt(pct, 2) + '％（' + fmt(cents, 1) + ' セント）。この差で「高い」と 75％ の確率で答えた';
+    document.getElementById('r-jnd-note').textContent = flat ? '±48 Hz でも正答率が 75％ 未満なので、閾は推定できません' : '＝ ' + fmt(pct, 2) + '％、' + fmt(cents, 1) + ' セント（セントは音の高さの差の単位。ピアノの隣り合う鍵盤の差が 100 セント、1 オクターブが 1200 セント）。この差で「高い」と 75％ の確率で答えた';
     document.getElementById('r-pse').textContent = flat ? '–' : (fit.mu > 0 ? '+' : '') + fmt(fit.mu, 1) + ' Hz';
     document.getElementById('r-lam').textContent = (fit.lam * 100).toFixed(0) + ' %';
     let note = '';
