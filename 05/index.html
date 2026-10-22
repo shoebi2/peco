@@ -8,7 +8,7 @@
   知覚・認知心理学 第5回 「聴覚」 課題B「音の高さの聞き分け」（1000 Hz の周波数弁別）
   ・単一の HTML ファイル。ネットワーク不要。Web Audio API で音を合成する。PC（クリック／↑ ↓キー）とスマートフォン（タップ）で動く。
   ・二肢強制選択（2I-2AFC）＋恒常法。標準音 1000 Hz（250 ms）→ 無音 500 ms → 比較音 1000+Δf Hz（250 ms）。
-    Δf = ±1.5, ±3, ±6, ±12, ±24, ±48 Hz × 6 反復 = 72 試行、完全ランダム。各音の音量は ±3 dB でランダムに揺らす（level rove）。
+    Δf = ±1.5, ±3, ±6, ±12, ±24, ±48 Hz × 10 反復 = 120 試行、完全ランダム。各音の音量は ±3 dB でランダムに揺らす（level rove）。
   ・両耳同一（diotic）なので、片耳イヤホンやスピーカーでも動く。
   ・終了後、ラプス付き累積正規分布を格子探索の最尤法で当てはめ、PSE と弁別閾（JND）を表示し、Google Form に貼るための「結果コード」を出す。
   ・URL パラメータ  ?reps=1  で反復回数を減らせる（動作確認用）。 ?auto=1 で模擬観察者（σ = 8 Hz）が自動回答する。
@@ -75,6 +75,11 @@
   .stat.amber .label { color: var(--amber); }
   #chart { width: 100%; max-width: 720px; height: auto; display: block; margin: 0.5em auto; }
   #code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.95rem; background: #fff; border: 2px dashed var(--indigo); border-radius: 8px; padding: 10px 12px; word-break: break-all; margin: 0.5em 0; user-select: all; -webkit-user-select: all; }
+  .deciles { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin: 0.6em 0 0.2em; }
+  .deciles div { text-align: center; font-size: 0.75rem; padding: 0.45em 0; background: #E8ECF3; color: #5B6578; border-radius: 4px; }
+  .deciles div.me { background: #C98A2B; color: #fff; font-weight: 700; }
+  .decile-axis { display: flex; justify-content: space-between; font-size: 0.75rem; color: #8A8F94; }
+  #r-features li { margin: 0.35em 0; }
   table.levels { border-collapse: collapse; font-size: 0.85rem; margin: 0.4em 0; }
   table.levels th, table.levels td { border: 1px solid #C9D3D8; padding: 0.3em 0.55em; text-align: right; }
   table.levels th { background: var(--navy); color: #fff; }
@@ -108,9 +113,9 @@
     <ol>
       <li><strong>直感で</strong>答えてください。わからないときも <strong>必ずどちらかを選ぶ</strong>（強制選択）。</li>
       <li>回答は 2 つ目の音が鳴り終わってから。PC は <span class="term">↑</span> <span class="term">↓</span> キー、スマートフォンはボタンをタップ。</li>
-      <li>練習 <span id="n-practice">4</span> 回（正解を表示）のあと、本番 <span id="n-main">72</span> 回（約 3 分）。本番では正解は出ません。途中でやめずに最後まで進んでください。</li>
+      <li>練習 <span id="n-practice">4</span> 回（正解を表示）のあと、本番 <span id="n-main">120</span> 回（約 5 分）。本番では正解は出ません。途中でやめずに最後まで進んでください。</li>
     </ol>
-    <p class="small">終わると、あなたの心理測定関数と「弁別閾」が表示され、Google Form に貼り付ける <strong>結果コード</strong> が出ます。</p>
+    <p class="small">終わると、あなたの心理測定関数と「弁別閾」、文献の値と比べた「あなたの結果の特徴」が表示され、コメントシート（Google Form）に貼り付ける <strong>結果コード</strong> が出ます。</p>
     <div class="row">
       <button class="btn" id="to-setup">設定にすすむ</button>
     </div>
@@ -171,7 +176,7 @@
   <div class="wrap">
     <h1>練習おわり</h1>
     <p id="between-msg"></p>
-    <p>ここから本番です。<span id="n-main2">72</span> 回、同じ要領で答えてください。本番では正解は表示されません。違いがほとんど聞き取れない試行も多く混ざりますが、それが普通です。直感で答えてください。</p>
+    <p>ここから本番です。<span id="n-main2">120</span> 回、同じ要領で答えてください。本番では正解は表示されません。違いがほとんど聞き取れない試行も多く混ざりますが、それが普通です。直感で答えてください。</p>
     <div class="row"><button class="btn" id="start-main">本番をはじめる</button><button class="btn secondary" id="redo-practice">もう一度練習する</button></div>
   </div>
 </section>
@@ -187,9 +192,13 @@
       <div class="stat"><div class="label">PSE（主観的等価点）</div><div class="value" id="r-pse">–</div><div class="note">この Δf で「高い」「低い」が半々。0 からのずれは回答のくせ</div></div>
       <div class="stat"><div class="label">ラプス率 λ</div><div class="value" id="r-lam">–</div><div class="note">聞き逃し・押し間違いの推定割合</div></div>
     </div>
+    <h2>文献の値と比べると</h2>
+    <div id="r-compare"></div>
+    <h2>あなたの結果の特徴</h2>
+    <ul id="r-features"></ul>
     <p id="r-note"></p>
-    <p class="small">参考：ふつうの大学生の弁別閾はおよそ 9〜11 Hz（Kidd et al. 2007 の中位群）。よく訓練した人は約 2 Hz（0.2％；Wier et al. 1977）。音楽家は非音楽家の半分〜6 分の 1（Kishon-Rabin et al. 2001; Micheyl et al. 2006）。ピアノの隣り合う鍵盤の差は 100 セント（1000 Hz では約 59 Hz）。</p>
-    <h2>結果コード（Google Form に貼り付け）</h2>
+    <p class="small">参考：ブラウザで測った一般の人の弁別閾は、真ん中（50％）の人で約 11 Hz（Grassi et al. 2024）。実験室で測った大学生では約 9 Hz（Kidd et al. 2007）。よく訓練した人は約 2 Hz（0.2％；Wier et al. 1977）。音楽家は非音楽家の半分〜6 分の 1（Kishon-Rabin et al. 2001; Micheyl et al. 2006）。ピアノの隣り合う鍵盤の差は 100 セント（1000 Hz では約 59 Hz）。</p>
+    <h2>結果コード（コメントシートの「結果コード」欄に貼り付け）</h2>
     <div id="code">–</div>
     <div class="row">
       <button class="btn" id="copy">結果コードをコピー</button>
@@ -198,7 +207,7 @@
     </div>
     <h2>水準ごとの回答</h2>
     <div class="tablewrap" id="table"></div>
-    <p class="small">モデル：P(高い) = λ + (1 − 2λ)·Φ((Δf − μ)/σ)。PSE = μ、JND = 0.674σ（「高い」が 75％ になる Δf と PSE の差）。μ・σ・λ を格子探索の最尤法で推定。72 試行の個人推定値には ±40〜50％ 程度の誤差があります。</p>
+    <p class="small">モデル：P(高い) = λ + (1 − 2λ)·Φ((Δf − μ)/σ)。PSE = μ、JND = 0.674σ（「高い」が 75％ になる Δf と PSE の差）。μ・σ・λ を格子探索の最尤法で推定。120 試行の個人推定値には ±35％ 程度の誤差があります。</p>
   </div>
 </section>
 
@@ -210,7 +219,7 @@
   const AUTO = params.get('auto') === '1';
   const CONFIG = {
     levels: [-48, -24, -12, -6, -3, -1.5, 1.5, 3, 6, 12, 24, 48],   // Δf (Hz)。結果コードの hi= はこの順
-    reps: parseInt(params.get('reps') || '6', 10),                   // 12 水準 × 6 = 72 試行
+    reps: parseInt(params.get('reps') || '10', 10),                  // 12 水準 × 10 = 120 試行（2026-10-22 72→120。推定のばらつきが約3割小さくなる）
     practiceDf: 100, practiceN: 4, practicePass: 3,                  // 練習：±100 Hz × 4、3 問以上正解で合格
     f0: 1000, toneMs: 250, rampMs: 10, isiMs: 500,                   // 標準 1000 Hz 250 ms（10 ms cos² ランプ）→ 500 ms 無音 → 比較音
     baseAmp: 0.2, roveDb: 3,                                         // 基準振幅と ±3 dB の level rove（一様分布、音ごと）
@@ -465,6 +474,7 @@
       if (Math.abs(fit.mu) > 10) note += ' あなたの PSE は ' + (fit.mu > 0 ? '＋' : '−') + ' 側に偏っており、2 つ目の音を「' + (fit.mu > 0 ? '低い' : '高い') + '」と答えやすい傾向でした。';
     }
     document.getElementById('r-note').innerHTML = note;
+    renderCompare(flat, jnd, fit, pct);
     // 結果コード
     let code = [CONFIG.version, 'pse=' + fmt(fit.mu, 1), 'jnd=' + fmt(jnd, 1), 'lam=' + fit.lam, 'n=' + data.length,
                 'hi=' + lv.map(l => l.y).join('.'), 'dev=' + sel.dev, 'mus=' + sel.mus,
@@ -478,7 +488,7 @@
     document.getElementById('table').innerHTML = html;
     // ボタン
     document.getElementById('copy').onclick = async () => {
-      try { await navigator.clipboard.writeText(code); document.getElementById('copied').textContent = 'コピーしました。Google Form に貼り付けてください。'; }
+      try { await navigator.clipboard.writeText(code); document.getElementById('copied').textContent = 'コピーしました。コメントシートの「結果コード」欄に貼り付けてください。'; }
       catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.getElementById('copied').textContent = '選択したので、そのままコピーしてください。'; }
     };
     document.getElementById('csv').onclick = () => {
@@ -487,6 +497,49 @@
       const blob = new Blob(['﻿' + head + body], { type: 'text/csv' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pitch_' + sessionId + '.csv'; a.click();
     };
+  }
+  // ===================== 文献値との比較と「あなたの結果の特徴」 =====================
+  // Grassi et al. (2024) Behav Res Methods 56:7465–7481, Table 2：1 kHz の周波数弁別閾を 10 段階（十分位）に分けた代表値（Hz）。
+  // ブラウザで測った一般の人（PSYCHOACOUSTICS-WEB、3 肢強制選択・適応法、70.7％ の点）。この課題は恒常法の 75％ の点なので、およその比較。
+  const NORM_WEB = [5.17, 6.44, 7.54, 9.75, 11.32, 14.11, 15.12, 21.35, 29.54, 45.27];
+  function decileOf(j) {          // 代表値の幾何平均を境目にして、どの段階に入るか（1＝最も細かい）
+    for (let k = 0; k < 9; k++) { if (j < Math.sqrt(NORM_WEB[k] * NORM_WEB[k + 1])) return k + 1; }
+    return 10;
+  }
+  function renderCompare(flat, jnd, fit, pct) {
+    const cmp = document.getElementById('r-compare'), ul = document.getElementById('r-features');
+    const items = [];
+    if (flat || !Number.isFinite(jnd)) {
+      cmp.innerHTML = '<p class="small">弁別閾を推定できなかったので、比較は表示しません。</p>';
+      items.push('いちばん差の大きい音（±48 Hz）でも、高い・低いの答えがそろいませんでした。音量が小さい、音が片方しか出ていない、途中で集中が切れた、などの可能性があります。イヤホンと音量を確かめて、もう一度試してみてください。');
+    } else {
+      const d = decileOf(jnd);
+      let cells = '';
+      for (let k = 1; k <= 10; k++) cells += '<div class="' + (k === d ? 'me' : '') + '">' + (k === d ? 'あなた' : k) + '</div>';
+      cmp.innerHTML = '<p>あなたの弁別閾 <strong>' + jnd.toFixed(1) + ' Hz</strong> は、ブラウザで測った人を 10 段階に分けると、<strong>細かい方から ' + d + ' 番目</strong>の段階に入ります（その段階の代表値は約 ' + NORM_WEB[d - 1].toFixed(0) + ' Hz）。</p>' +
+        '<div class="deciles">' + cells + '</div><div class="decile-axis"><span>← 細かく聞き分けた</span><span>粗かった →</span></div>' +
+        '<p class="small">比べた値：Grassi et al. (2024) の 1000 Hz の結果（ブラウザで測った一般の人）。真ん中の人は約 11 Hz。よく訓練した人は約 2 Hz（Wier et al. 1977）。測り方が少し違うので、およその比較です。</p>';
+      // 弁別閾
+      if (jnd <= 3) items.push('とても細かく聞き分けられました（' + jnd.toFixed(1) + ' Hz）。よく訓練した人の値（約 2 Hz）に近い結果です。楽器や歌の経験がある人に多い値です。');
+      else if (d <= 3) items.push('細かく聞き分けられました（' + jnd.toFixed(1) + ' Hz）。ブラウザで測った人の中では、細かい方の 3 割に入ります。');
+      else if (d <= 7) items.push('ふつうの聞き分けです（' + jnd.toFixed(1) + ' Hz）。ブラウザで測った人の真ん中（約 11 Hz）の近くです。');
+      else if (d <= 9) items.push('やや粗い結果でした（' + jnd.toFixed(1) + ' Hz）。集中、音量、イヤホンの影響もあります。また、非音楽家でも数時間の練習で弁別閾が小さくなることが知られています（Micheyl et al. 2006）。');
+      else items.push('粗い結果でした（' + jnd.toFixed(1) + ' Hz）。音量が小さい、途中で集中が切れた、イヤホンの不具合などが影響した可能性があります。もう一度試すと変わることがあります。弁別閾が大きくても、聞こえの異常というわけではありません。');
+      // 割合とピアノ
+      const semis = 59.46 / jnd;
+      items.push('1000 Hz に対して約 ' + pct.toFixed(1) + '％ の違いです。ピアノの隣り合う鍵盤（1000 Hz 付近で約 59 Hz、約 6％）の' + (semis >= 1.5 ? '約 ' + Math.round(semis) + ' 分の 1 の違いまで聞き分けたことになります。' : 'ほどの違いでした。'));
+      // PSE
+      const mu = fit.mu;
+      if (Math.abs(mu) <= 3) items.push('答えの偏り（PSE）はほとんどありませんでした（' + (mu > 0 ? '+' : '') + mu.toFixed(1) + ' Hz）。「高い」「低い」をバランスよく答えています。');
+      else if (mu > 0) items.push('2 つ目の音を「低い」と答えやすい傾向がありました（PSE ' + '+' + mu.toFixed(1) + ' Hz）。同じ高さの音どうしでも、2 つ目を低めに感じていたのかもしれません。');
+      else items.push('2 つ目の音を「高い」と答えやすい傾向がありました（PSE ' + mu.toFixed(1) + ' Hz）。同じ高さの音どうしでも、2 つ目を高めに感じていたのかもしれません。');
+      if (Math.abs(mu) > jnd) items.push('答えの偏り（PSE）が弁別閾より大きくなっています。迷ったときにどちらか一方を選ぶくせがあったのかもしれません。');
+      // ラプス
+      if (fit.lam >= 0.06) items.push('はっきりわかるはずの大きな差（±48 Hz）でも、ときどき逆の答えがありました（ラプス率 ' + Math.round(fit.lam * 100) + '％）。押し間違いや聞き逃しがあったようです。');
+      else items.push('大きな差（±24〜48 Hz）は、ほぼ確実に聞き分けられていました。');
+      if (fit.edge) items.push('推定値が計算の範囲の端に当たりました。数値はおよその目安として見てください。');
+    }
+    ul.innerHTML = items.map(t => '<li>' + t + '</li>').join('');
   }
   const SVG_NS = 'http://www.w3.org/2000/svg';
   // 横軸は符号付き対数：u = sign(x)·log2(1 + |x| / 1.5)
