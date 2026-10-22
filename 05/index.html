@@ -185,7 +185,7 @@
 <section id="result" class="screen">
   <div class="wrap">
     <h1>結果：あなたの心理測定関数</h1>
-    <p class="small">横軸は「2 つ目の音の周波数 − 1000 Hz」（Δf、目盛は対数）。縦軸は「高い」と答えた割合。曲線は当てはめた累積正規分布（ラプス付き）。</p>
+    <p class="small">横軸は「2 つ目の音の周波数 − 1000 Hz」（Δf、Hz の等間隔。±1.5〜±6 Hz の点は 0 の近くに集まる）。縦軸は「高い」と答えた割合。曲線は当てはめた累積正規分布（ラプス付き）。</p>
     <svg id="chart" viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="stats">
       <div class="stat amber"><div class="label">弁別閾（JND）</div><div class="value" id="r-jnd">–</div><div class="note" id="r-jnd-note">1000 Hz からこの差で「高い」と 75％ の確率で答えた</div></div>
@@ -220,7 +220,8 @@
   const CONFIG = {
     levels: [-48, -24, -12, -6, -3, -1.5, 1.5, 3, 6, 12, 24, 48],   // Δf (Hz)。結果コードの hi= はこの順
     reps: parseInt(params.get('reps') || '10', 10),                  // 12 水準 × 10 = 120 試行（2026-10-22 72→120。推定のばらつきが約3割小さくなる）
-    practiceDf: 100, practiceN: 4, practicePass: 3,                  // 練習：±100 Hz × 4、3 問以上正解で合格
+    practiceDf: 100, practiceN: 4, practicePass: 3,                  // 練習：±100 Hz × 4、3 問以上正解で合格（合否はこの 4 問だけで判定）
+    practiceExtra: [24, -24, 12, -12],                               // 2026-10-22 追加：続けて ±24・±12 Hz を 1 回ずつ（正解を表示。結果には含めない）。最初の数十試行の慣れを減らすため
     f0: 1000, toneMs: 250, rampMs: 10, isiMs: 500,                   // 標準 1000 Hz 250 ms（10 ms cos² ランプ）→ 500 ms 無音 → 比較音
     baseAmp: 0.2, roveDb: 3,                                         // 基準振幅と ±3 dB の level rove（一様分布、音ごと）
     respDelayMs: 250,        // 2 つ目の音の終了後、回答を受け付けるまでの余裕（Bluetooth の遅れを吸収）
@@ -235,7 +236,7 @@
     version: 'PIT1'
   };
   const N_MAIN = CONFIG.levels.length * CONFIG.reps;
-  document.getElementById('n-practice').textContent = CONFIG.practiceN;
+  document.getElementById('n-practice').textContent = CONFIG.practiceN + CONFIG.practiceExtra.length;
   document.getElementById('n-main').textContent = N_MAIN;
   document.getElementById('n-main2').textContent = N_MAIN;
 
@@ -343,7 +344,7 @@
   function buildPractice() {
     const t = [];
     for (let i = 0; i < CONFIG.practiceN; i++) t.push({ df: (i % 2 ? -1 : 1) * CONFIG.practiceDf });
-    return shuffle(t);
+    return shuffle(t).concat(shuffle(CONFIG.practiceExtra.map(df => ({ df, extra: true }))));   // やさしい ±100 Hz のあとに ±24・±12 Hz
   }
 
   // ===================== 実行 =====================
@@ -353,7 +354,7 @@
   const feedback = document.getElementById('feedback');
   const respButtons = document.querySelectorAll('#buttons [data-resp]');
   let trials = [], idx = 0, phase = 'practice', data = [], accepting = false, tEnable = 0, current = null;
-  let practiceCorrect = 0, practiceRuns = 0, timers = [];
+  let practiceCorrect = 0, practiceCorrectAll = 0, practiceRuns = 0, timers = [];
   const sessionId = Math.random().toString(36).slice(2, 6);
   const rove = () => (Math.random() * 2 - 1) * CONFIG.roveDb;
   function later(f, ms) { timers.push(setTimeout(f, ms)); }
@@ -384,7 +385,7 @@
     if (phase === 'main') {
       data.push({ trial: idx + 1, df: current.df, rove1: current.rove1, rove2: current.rove2, resp, higher, correct, rt: Math.round(rt) });
     } else {
-      practiceCorrect += correct;
+      practiceCorrectAll += correct; if (!current.extra) practiceCorrect += correct;   // 合否（flag P）は ±100 Hz の 4 問だけで判定
       feedback.textContent = correct ? '正解' : '不正解（正しくは「' + (current.df > 0 ? '高い' : '低い') + '」）';
       feedback.className = correct ? 'ok' : 'ng'; feedback.style.display = 'block';
     }
@@ -395,12 +396,12 @@
     if (phase === 'practice') {
       practiceRuns++;
       const pass = practiceCorrect >= CONFIG.practicePass;
-      document.getElementById('between-msg').innerHTML = '練習の正解：<strong>' + practiceCorrect + ' / ' + CONFIG.practiceN + '</strong>。' +
+      document.getElementById('between-msg').innerHTML = '練習の正解：<strong>' + practiceCorrectAll + ' / ' + trials.length + '</strong>。' +
         (pass ? '' : ' <span class="warn">正解が少なめです。</span>イヤホンの接続や音量を確かめて、もう一度練習することをおすすめします（そのまま本番に進んでも構いません）。');
       show('between');
     } else { showResult(); }
   }
-  function startPractice() { phase = 'practice'; trials = buildPractice(); idx = 0; practiceCorrect = 0; resumeCtx(); show('trial'); runTrial(); }
+  function startPractice() { phase = 'practice'; trials = buildPractice(); idx = 0; practiceCorrect = 0; practiceCorrectAll = 0; resumeCtx(); show('trial'); runTrial(); }
   document.getElementById('start-practice').addEventListener('click', startPractice);
   document.getElementById('redo-practice').addEventListener('click', startPractice);
   document.getElementById('start-main').addEventListener('click', () => {
@@ -542,8 +543,8 @@
     ul.innerHTML = items.map(t => '<li>' + t + '</li>').join('');
   }
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  // 横軸は符号付き対数：u = sign(x)·log2(1 + |x| / 1.5)
-  const U = x => Math.sign(x) * Math.log2(1 + Math.abs(x) / 1.5);
+  // 横軸は Hz の等間隔（2026-10-22 変更。対数の目盛では、当てはめたなめらかな S 字がうねって見えたため）
+  const U = x => x;
   function drawChart(lv, fit, flat) {
     const c = document.getElementById('chart'); while (c.firstChild) c.removeChild(c.firstChild);
     const W = 720, H = 420, L = 70, R = 20, T = 48, B = 60;
@@ -551,7 +552,7 @@
     const X = x => L + (U(x) - u0) / (u1 - u0) * (W - L - R), Y = p => T + (1 - p) * (H - T - B);
     const el = (n, at, txt) => { const e = document.createElementNS(SVG_NS, n); for (const k in at) e.setAttribute(k, at[k]); if (txt != null) e.textContent = txt; c.appendChild(e); return e; };
     for (const p of [0, 0.25, 0.5, 0.75, 1]) { el('line', { x1: L, x2: W - R, y1: Y(p), y2: Y(p), stroke: '#DDE3E6' }); el('text', { x: L - 8, y: Y(p) + 5, 'text-anchor': 'end', 'font-size': 13, fill: '#8A8F94' }, Math.round(p * 100)); }
-    for (const k of CONFIG.levels.concat([0])) el('text', { x: X(k), y: H - B + 20, 'text-anchor': 'middle', 'font-size': 11, fill: '#8A8F94' }, (k > 0 ? '+' : '') + k);
+    for (const k of [-48, -24, -12, 0, 12, 24, 48]) el('text', { x: X(k), y: H - B + 20, 'text-anchor': 'middle', 'font-size': 11, fill: '#8A8F94' }, (k > 0 ? '+' : '') + k);
     el('line', { x1: L, x2: W - R, y1: Y(0), y2: Y(0), stroke: '#8A8F94' }); el('line', { x1: L, x2: L, y1: T, y2: Y(0), stroke: '#8A8F94' });
     el('text', { x: (L + W - R) / 2, y: H - 14, 'text-anchor': 'middle', 'font-size': 14, fill: '#1B2A49', 'font-weight': 700 }, '2 つ目の音の周波数 − 1000 Hz（Δf, Hz）');
     el('text', { x: 12, y: T - 22, 'font-size': 14, fill: '#1B2A49', 'font-weight': 700 }, '「高い」と答えた割合（%）');
