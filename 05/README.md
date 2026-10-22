@@ -149,3 +149,7 @@ git push
 ## audio.html：授業で鳴らした音
 
 スライドのスピーカーのアイコンで鳴らした音（`figure/audio/*.wav`、21 本、計約 4 MB）を、学生が後から聞けるページ。`figure/make_audio_page.py` が `content_05.py` の `audio=` の一覧から生成し、wav を `web/05/audio/` にコピーする（スライド番号は SLIDES の順）。音の説明文はスクリプト内の `NOTE`。URL は `https://shoebi2.github.io/peco/05/audio.html`（スライドの注記に記載）。wav のまま置く理由：mp3 にすると 16 kHz 以上が落ちる。
+
+## 結果を送るフォーム（2026-10-22 追加）
+- 結果画面の「結果をフォームで送る」で、Google フォーム `PECO_05_課題結果_2026-10-23`（https://docs.google.com/forms/d/e/1FAIpQLSe2JG_5qjicGidN1QKBx6kumLh59VRPnNT43LwPOU4yK8M8BA/viewform、編集：https://docs.google.com/forms/d/148V1IvRwkgzYtQz9jXOESmO9QdPBe44OhSnwKYSl81E/edit）が、結果コード（entry.925922133）と試行データ（entry.989279830）を入れた状態で開く。学生は学籍番号と氏名を入れて送信する。コメントシートの結果コード欄は廃止
+- 試行データの書式：`T1:` のあとに 1 試行 4 文字 ×120（水準の番号 0〜b の 16 進 1 桁［-48, -24, -12, -6, -3, -1.5, 1.5, 3, 6, 12, 24, 48 の順］、回答 H/L、反応時間 10 ms 単位の 36 進 2 桁［上限 12.95 秒］）。`analysis_pitch.py` の `decode_trials_t1()` で読める

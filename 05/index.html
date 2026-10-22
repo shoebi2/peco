@@ -10,7 +10,7 @@
   ・二肢強制選択（2I-2AFC）＋恒常法。標準音 1000 Hz（250 ms）→ 無音 500 ms → 比較音 1000+Δf Hz（250 ms）。
     Δf = ±1.5, ±3, ±6, ±12, ±24, ±48 Hz × 10 反復 = 120 試行、完全ランダム。各音の音量は ±3 dB でランダムに揺らす（level rove）。
   ・両耳同一（diotic）なので、片耳イヤホンやスピーカーでも動く。
-  ・終了後、ラプス付き累積正規分布を格子探索の最尤法で当てはめ、PSE と弁別閾（JND）を表示し、Google Form に貼るための「結果コード」を出す。
+  ・終了後、ラプス付き累積正規分布を格子探索の最尤法で当てはめ、PSE と弁別閾（JND）を表示し、結果コードと試行データを入れた「課題結果」フォームを開くボタンを出す（2026-10-22。コメントシートの結果コード欄は廃止）。
   ・URL パラメータ  ?reps=1  で反復回数を減らせる（動作確認用）。 ?auto=1 で模擬観察者（σ = 8 Hz）が自動回答する。
   ・結果コードの書式は README.md と analysis_pitch.py を参照。
 -->
@@ -34,6 +34,8 @@
   .term { background: var(--light); color: var(--navy); padding: 0.05em 0.45em; border-radius: 5px; font-weight: 700; white-space: nowrap; }
   ol, ul { padding-left: 1.4em; }
   button { font: inherit; }
+  a.btn { text-decoration: none; }
+  #form-url { word-break: break-all; }
   .btn { display: inline-block; background: var(--indigo); color: #fff; border: none; border-radius: 8px; padding: 0.75em 1.6em; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
   .btn:hover { filter: brightness(1.08); }
   .btn.secondary { background: #fff; color: var(--indigo); border: 2px solid var(--indigo); }
@@ -115,7 +117,7 @@
       <li>回答は 2 つ目の音が鳴り終わってから。PC は <span class="term">↑</span> <span class="term">↓</span> キー、スマートフォンはボタンをタップ。</li>
       <li>練習 <span id="n-practice">4</span> 回（正解を表示）のあと、本番 <span id="n-main">120</span> 回（約 5 分）。本番では正解は出ません。途中でやめずに最後まで進んでください。</li>
     </ol>
-    <p class="small">終わると、あなたの心理測定関数と「弁別閾」、文献の値と比べた「あなたの結果の特徴」が表示され、コメントシート（Google Form）に貼り付ける <strong>結果コード</strong> が出ます。</p>
+    <p class="small">終わると、あなたの心理測定関数と「弁別閾」、文献の値と比べた「あなたの結果の特徴」が表示されます。最後に「結果をフォームで送る」ボタンから、<strong>その場で結果を送信</strong>してください。</p>
     <div class="row">
       <button class="btn" id="to-setup">設定にすすむ</button>
     </div>
@@ -198,10 +200,15 @@
     <ul id="r-features"></ul>
     <p id="r-note"></p>
     <p class="small">参考：ブラウザで測った一般の人の弁別閾は、真ん中（50％）の人で約 11 Hz（Grassi et al. 2024）。実験室で測った大学生では約 9 Hz（Kidd et al. 2007）。よく訓練した人は約 2 Hz（0.2％；Wier et al. 1977）。音楽家は非音楽家の半分〜6 分の 1（Kishon-Rabin et al. 2001; Micheyl et al. 2006）。ピアノの隣り合う鍵盤の差は 100 セント（1000 Hz では約 59 Hz）。</p>
-    <h2>結果コード（コメントシートの「結果コード」欄に貼り付け）</h2>
+    <h2>結果を送る（いますぐ）</h2>
+    <p>下のボタンでフォームが開きます。結果コードと試行データはすでに入っているので、<strong>学籍番号と氏名を入れて「送信」</strong>を押してください。</p>
+    <div class="row">
+      <a class="btn" id="send-form" href="#" target="_blank" rel="noopener">結果をフォームで送る</a>
+    </div>
+    <p class="small">フォームが開かないときは、結果コードをコピーして、フォーム（<span id="form-url"></span>）の「結果コード」欄に貼り付けてください。</p>
     <div id="code">–</div>
     <div class="row">
-      <button class="btn" id="copy">結果コードをコピー</button>
+      <button class="btn secondary" id="copy">結果コードをコピー</button>
       <button class="btn secondary" id="csv">試行データ（CSV）を保存</button>
       <span id="copied" class="small"></span>
     </div>
@@ -220,6 +227,9 @@
   const CONFIG = {
     levels: [-48, -24, -12, -6, -3, -1.5, 1.5, 3, 6, 12, 24, 48],   // Δf (Hz)。結果コードの hi= はこの順
     reps: parseInt(params.get('reps') || '10', 10),                  // 12 水準 × 10 = 120 試行（2026-10-22 72→120。推定のばらつきが約3割小さくなる）
+    formBase: 'https://docs.google.com/forms/d/e/1FAIpQLSe2JG_5qjicGidN1QKBx6kumLh59VRPnNT43LwPOU4yK8M8BA/viewform',   // PECO_05_課題結果_2026-10-23
+    formShort: 'https://docs.google.com/forms/d/e/1FAIpQLSe2JG_5qjicGidN1QKBx6kumLh59VRPnNT43LwPOU4yK8M8BA/viewform',
+    formCode: 'entry.925922133', formTrials: 'entry.989279830',   // 結果コード・試行データの欄
     practiceDf: 100, practiceN: 4, practicePass: 3,                  // 練習：±100 Hz × 4、3 問以上正解で合格（合否はこの 4 問だけで判定）
     practiceExtra: [24, -24, 12, -12],                               // 2026-10-22 追加：続けて ±24・±12 Hz を 1 回ずつ（正解を表示。結果には含めない）。最初の数十試行の慣れを減らすため
     f0: 1000, toneMs: 250, rampMs: 10, isiMs: 500,                   // 標準 1000 Hz 250 ms（10 ms cos² ランプ）→ 500 ms 無音 → 比較音
@@ -482,6 +492,12 @@
                 'sr=' + (ctx ? (ctx.sampleRate / 1000) : 0), 'ua=' + UA, 'flag=' + (flags || '-'), 'id=' + sessionId].join('|');
     code += '|ck=' + checksum(code);
     document.getElementById('code').textContent = code;
+    // 結果を送るフォーム（2026-10-22 追加。結果コードと試行データを入れた状態で開く）
+    // 試行データ：T1: のあとに 1 試行 4 文字 ×120（水準の番号 0〜b、H/L、反応時間 10 ms 単位の 36 進 2 桁）
+    const trialStr = 'T1:' + data.map(d => CONFIG.levels.indexOf(d.df).toString(16) + d.resp + Math.min(1295, Math.round(d.rt / 10)).toString(36).padStart(2, '0')).join('');
+    const formUrl = CONFIG.formBase + '?usp=pp_url&' + CONFIG.formCode + '=' + encodeURIComponent(code) + '&' + CONFIG.formTrials + '=' + encodeURIComponent(trialStr);
+    document.getElementById('send-form').href = formUrl;
+    document.getElementById('form-url').textContent = CONFIG.formShort;
     drawChart(lv, fit, flat);
     // 表
     let html = '<table class="levels"><tr><th>Δf (Hz)</th>' + CONFIG.levels.map(k => '<th>' + (k > 0 ? '+' : '') + k + '</th>').join('') + '</tr>';
@@ -489,7 +505,7 @@
     document.getElementById('table').innerHTML = html;
     // ボタン
     document.getElementById('copy').onclick = async () => {
-      try { await navigator.clipboard.writeText(code); document.getElementById('copied').textContent = 'コピーしました。コメントシートの「結果コード」欄に貼り付けてください。'; }
+      try { await navigator.clipboard.writeText(code); document.getElementById('copied').textContent = 'コピーしました。フォームの「結果コード」欄に貼り付けてください。'; }
       catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.getElementById('copied').textContent = '選択したので、そのままコピーしてください。'; }
     };
     document.getElementById('csv').onclick = () => {
