@@ -187,6 +187,10 @@
 <section id="result" class="screen">
   <div class="wrap">
     <h1>結果：あなたの心理測定関数</h1>
+    <div class="row">
+      <a class="btn" id="send-form-top" href="#" target="_blank" rel="noopener">結果をフォームで送る</a>
+    </div>
+    <p class="small">まず結果を送ってください。フォームが開いたら、学籍番号と氏名を入れて「送信」を押します。結果は授業内の集計にのみ使います。</p>
     <p class="small">横軸は「2 つ目の音の周波数 − 1000 Hz」（Δf、Hz の等間隔。±1.5〜±6 Hz の点は 0 の近くに集まる）。縦軸は「高い」と答えた割合。曲線は当てはめた累積正規分布（ラプス付き）。</p>
     <svg id="chart" viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="stats">
@@ -199,9 +203,9 @@
     <h2>あなたの結果の特徴</h2>
     <ul id="r-features"></ul>
     <p id="r-note"></p>
-    <p class="small">参考：ブラウザで測った一般の人の弁別閾は、真ん中（50％）の人で約 11 Hz（Grassi et al. 2024）。実験室で測った大学生では約 9 Hz（Kidd et al. 2007）。よく訓練した人は約 2 Hz（0.2％；Wier et al. 1977）。音楽家は非音楽家の半分〜6 分の 1（Kishon-Rabin et al. 2001; Micheyl et al. 2006）。ピアノの隣り合う鍵盤の差は 100 セント（1000 Hz では約 59 Hz）。</p>
+    <p class="small">参考：ブラウザで測った一般の人の弁別閾は、真ん中（50％）の人で約 11 Hz（Grassi et al. 2024。50 Hz を超えた約 2 割を除いた分布）。実験室で測った大学生では約 9 Hz（Kidd et al. 2007）。よく訓練した人は約 2 Hz（0.2％；Wier et al. 1977）。音楽家は非音楽家の半分〜6 分の 1（Kishon-Rabin et al. 2001; Micheyl et al. 2006）。ピアノの隣り合う鍵盤の差は 100 セント（1000 Hz では約 59 Hz）。</p>
     <h2>結果を送る（いますぐ）</h2>
-    <p>下のボタンでフォームが開きます。結果コードと試行データはすでに入っているので、<strong>学籍番号と氏名を入れて「送信」</strong>を押してください。</p>
+    <p>下のボタンでフォームが開きます。結果コードと試行データはすでに入っているので、<strong>学籍番号と氏名を入れて「送信」</strong>を押してください（上のボタンで送った人は不要です）。結果は授業内の集計にのみ使います。</p>
     <div class="row">
       <a class="btn" id="send-form" href="#" target="_blank" rel="noopener">結果をフォームで送る</a>
     </div>
@@ -387,6 +391,7 @@
     later(() => { tEnable = performance.now(); accepting = true; setButtons(true); }, dur + (AUTO ? 0 : CONFIG.respDelayMs));
   }
   function respond(resp) {   // resp: 'H'（高い）| 'L'（低い）
+    resumeCtx();   // 2026-10-22：アプリ切り替えなどで止まった音を、ボタンを押した操作の中で再開する（iOS 対策）
     if (!accepting) return;
     const rt = performance.now() - tEnable;
     if (!AUTO && rt < CONFIG.minRtMs) return;
@@ -416,6 +421,9 @@
   document.getElementById('redo-practice').addEventListener('click', startPractice);
   document.getElementById('start-main').addEventListener('click', () => {
     phase = 'main'; trials = buildTrials(); idx = 0; data = []; resumeCtx(); show('trial'); runTrial();
+  });
+  window.addEventListener('beforeunload', e => {   // 2026-10-22：本番の途中で閉じようとしたら確認する
+    if (phase === 'main' && screens.trial.classList.contains('active') && idx > 0) { e.preventDefault(); e.returnValue = ''; }
   });
   respButtons.forEach(el => el.addEventListener('click', e => { e.preventDefault(); respond(el.getAttribute('data-resp')); }));
   document.addEventListener('keydown', e => {
@@ -478,14 +486,14 @@
     document.getElementById('r-pse').textContent = flat ? '–' : (fit.mu > 0 ? '+' : '') + fmt(fit.mu, 1) + ' Hz';
     document.getElementById('r-lam').textContent = (fit.lam * 100).toFixed(0) + ' %';
     let note = '';
-    if (flat) note += '<span class="warn">注意：</span>いちばん差の大きい ±48 Hz でも正答率が ' + Math.round(accTop * 100) + '％ でした。音が正しく出ていなかった（イヤホンの接続、音量、周囲の騒音）か、「高い／低い」の対応づけが難しかった可能性があります。この場合、曲線の数値は解釈しないでください。';
+    if (flat) note += '<span class="warn">注意：</span>いちばん差の大きい ±48 Hz でも正答率が ' + Math.round(accTop * 100) + '％ でした。差が大きくても聞き分けにくいことは、よくあります。音量や周囲の騒音、「高い／低い」の対応づけの難しさが影響した可能性もあります。この場合、曲線の数値は解釈しないでください。';
     else {
       if (fit.edge) note += '<span class="warn">注意：</span>推定値が探索範囲の端に当たっています（回答が極端に偏っていた可能性）。 ';
       note += 'JND が小さいほど、小さな周波数差を聞き分けられたことになります。PSE が 0 から大きくずれていれば、「高い」または「低い」と答えやすい傾向（回答バイアス）があったことを示します。';
       if (Math.abs(fit.mu) > 10) note += ' あなたの PSE は ' + (fit.mu > 0 ? '＋' : '−') + ' 側に偏っており、2 つ目の音を「' + (fit.mu > 0 ? '低い' : '高い') + '」と答えやすい傾向でした。';
     }
     document.getElementById('r-note').innerHTML = note;
-    renderCompare(flat, jnd, fit, pct);
+    lvAll = lv; renderCompare(flat, jnd, fit, pct);
     // 結果コード
     let code = [CONFIG.version, 'pse=' + fmt(fit.mu, 1), 'jnd=' + fmt(jnd, 1), 'lam=' + fit.lam, 'n=' + data.length,
                 'hi=' + lv.map(l => l.y).join('.'), 'dev=' + sel.dev, 'mus=' + sel.mus,
@@ -496,7 +504,7 @@
     // 試行データ：T1: のあとに 1 試行 4 文字 ×120（水準の番号 0〜b、H/L、反応時間 10 ms 単位の 36 進 2 桁）
     const trialStr = 'T1:' + data.map(d => CONFIG.levels.indexOf(d.df).toString(16) + d.resp + Math.min(1295, Math.round(d.rt / 10)).toString(36).padStart(2, '0')).join('');
     const formUrl = CONFIG.formBase + '?usp=pp_url&' + CONFIG.formCode + '=' + encodeURIComponent(code) + '&' + CONFIG.formTrials + '=' + encodeURIComponent(trialStr);
-    document.getElementById('send-form').href = formUrl;
+    document.getElementById('send-form').href = formUrl; document.getElementById('send-form-top').href = formUrl;
     document.getElementById('form-url').textContent = CONFIG.formShort;
     drawChart(lv, fit, flat);
     // 表
@@ -519,6 +527,7 @@
   // Grassi et al. (2024) Behav Res Methods 56:7465–7481, Table 2：1 kHz の周波数弁別閾を 10 段階（十分位）に分けた代表値（Hz）。
   // ブラウザで測った一般の人（PSYCHOACOUSTICS-WEB、3 肢強制選択・適応法、70.7％ の点）。この課題は恒常法の 75％ の点なので、およその比較。
   const NORM_WEB = [5.17, 6.44, 7.54, 9.75, 11.32, 14.11, 15.12, 21.35, 29.54, 45.27];
+  let lvAll = [];
   function decileOf(j) {          // 代表値の幾何平均を境目にして、どの段階に入るか（1＝最も細かい）
     for (let k = 0; k < 9; k++) { if (j < Math.sqrt(NORM_WEB[k] * NORM_WEB[k + 1])) return k + 1; }
     return 10;
@@ -528,32 +537,38 @@
     const items = [];
     if (flat || !Number.isFinite(jnd)) {
       cmp.innerHTML = '<p class="small">弁別閾を推定できなかったので、比較は表示しません。</p>';
-      items.push('いちばん差の大きい音（±48 Hz）でも、高い・低いの答えがそろいませんでした。音量が小さい、音が片方しか出ていない、途中で集中が切れた、などの可能性があります。イヤホンと音量を確かめて、もう一度試してみてください。');
+      items.push('いちばん差の大きい音（±48 Hz）でも、高い・低いの答えがそろいませんでした。差が大きくても聞き分けにくい人はいます（よくあることです）。音量が小さい、途中で集中が切れた、などの可能性もあるので、イヤホンと音量を確かめて、もう一度試してみてください。');
     } else {
       const d = decileOf(jnd);
       let cells = '';
       for (let k = 1; k <= 10; k++) cells += '<div class="' + (k === d ? 'me' : '') + '">' + (k === d ? 'あなた' : k) + '</div>';
       cmp.innerHTML = '<p>あなたの弁別閾 <strong>' + jnd.toFixed(1) + ' Hz</strong> は、ブラウザで測った人を 10 段階に分けると、<strong>細かい方から ' + d + ' 番目</strong>の段階に入ります（その段階の代表値は約 ' + NORM_WEB[d - 1].toFixed(0) + ' Hz）。</p>' +
         '<div class="deciles">' + cells + '</div><div class="decile-axis"><span>← 細かく聞き分けた</span><span>粗かった →</span></div>' +
-        '<p class="small">比べた値：Grassi et al. (2024) の 1000 Hz の結果（ブラウザで測った一般の人）。真ん中の人は約 11 Hz。よく訓練した人は約 2 Hz（Wier et al. 1977）。測り方が少し違うので、およその比較です。</p>';
+        '<p class="small">比べた値：Grassi et al. (2024) の 1000 Hz の結果（ブラウザで測った一般の人。50 Hz を超えた約 2 割を除いた分布）。真ん中の人は約 11 Hz。よく訓練した人は約 2 Hz（Wier et al. 1977）。Grassi の測り方（3 つの音から選ぶ方式の 70.7％ の点）では、同じ人でもこの課題より約 1.3 倍大きな値が出ます。そのため、あなたの段階は実際より 1 段階ほど細かい側に出ている可能性があります。およその比較として見てください。</p>';
       // 弁別閾
       if (jnd <= 3) items.push('とても細かく聞き分けられました（' + jnd.toFixed(1) + ' Hz）。よく訓練した人の値（約 2 Hz）に近い結果です。楽器や歌の経験がある人に多い値です。');
       else if (d <= 3) items.push('細かく聞き分けられました（' + jnd.toFixed(1) + ' Hz）。ブラウザで測った人の中では、細かい方の 3 割に入ります。');
       else if (d <= 7) items.push('ふつうの聞き分けです（' + jnd.toFixed(1) + ' Hz）。ブラウザで測った人の真ん中（約 11 Hz）の近くです。');
-      else if (d <= 9) items.push('やや粗い結果でした（' + jnd.toFixed(1) + ' Hz）。集中、音量、イヤホンの影響もあります。また、非音楽家でも数時間の練習で弁別閾が小さくなることが知られています（Micheyl et al. 2006）。');
+      else if (d <= 9) items.push('やや粗い結果でした（' + jnd.toFixed(1) + ' Hz）。ブラウザで測った人の約 2〜3 割がこの範囲で、珍しくありません。非音楽家でも数時間の練習で弁別閾が小さくなることが知られています（Micheyl et al. 2006）。');
       else items.push('粗い結果でした（' + jnd.toFixed(1) + ' Hz）。音量が小さい、途中で集中が切れた、イヤホンの不具合などが影響した可能性があります。もう一度試すと変わることがあります。弁別閾が大きくても、聞こえの異常というわけではありません。');
       // 割合とピアノ
       const semis = 59.46 / jnd;
       items.push('1000 Hz に対して約 ' + pct.toFixed(1) + '％ の違いです。ピアノの隣り合う鍵盤（1000 Hz 付近で約 59 Hz、約 6％）の' + (semis >= 1.5 ? '約 ' + Math.round(semis) + ' 分の 1 の違いまで聞き分けたことになります。' : 'ほどの違いでした。'));
       // PSE
       const mu = fit.mu;
-      if (Math.abs(mu) <= 3) items.push('答えの偏り（PSE）はほとんどありませんでした（' + (mu > 0 ? '+' : '') + mu.toFixed(1) + ' Hz）。「高い」「低い」をバランスよく答えています。');
+      const muThr = Math.max(3, 0.5 * jnd);   // 2026-10-22：推定のばらつき（JND の約 0.24 倍）を考え、3 Hz と JND の半分の大きい方を基準にする
+      if (Math.abs(mu) <= muThr) items.push('答えの偏り（PSE）はほとんどありませんでした（' + (mu > 0 ? '+' : '') + mu.toFixed(1) + ' Hz）。「高い」「低い」をバランスよく答えています。');
       else if (mu > 0) items.push('2 つ目の音を「低い」と答えやすい傾向がありました（PSE ' + '+' + mu.toFixed(1) + ' Hz）。同じ高さの音どうしでも、2 つ目を低めに感じていたのかもしれません。');
       else items.push('2 つ目の音を「高い」と答えやすい傾向がありました（PSE ' + mu.toFixed(1) + ' Hz）。同じ高さの音どうしでも、2 つ目を高めに感じていたのかもしれません。');
       if (Math.abs(mu) > jnd) items.push('答えの偏り（PSE）が弁別閾より大きくなっています。迷ったときにどちらか一方を選ぶくせがあったのかもしれません。');
       // ラプス
-      if (fit.lam >= 0.06) items.push('はっきりわかるはずの大きな差（±48 Hz）でも、ときどき逆の答えがありました（ラプス率 ' + Math.round(fit.lam * 100) + '％）。押し間違いや聞き逃しがあったようです。');
-      else items.push('大きな差（±24〜48 Hz）は、ほぼ確実に聞き分けられていました。');
+      // 2026-10-22：ラプス率ではなく、±24・±48 Hz で実際に正解した割合で文を選ぶ
+      let okBig = 0, nBig = 0;
+      lvAll.forEach(l => { if (Math.abs(l.x) >= 24) { nBig += l.n; okBig += l.x > 0 ? l.y : l.n - l.y; } });
+      const accBig = nBig ? okBig / nBig : 0, accPct = Math.round(accBig * 100);
+      if (accBig >= 0.95) items.push('大きな差（±24〜48 Hz）は、ほぼ確実に聞き分けられていました（正答率 ' + accPct + '％）。');
+      else if (accBig >= 0.85) items.push('大きな差（±24〜48 Hz）は、おおむね聞き分けられていました（正答率 ' + accPct + '％）。');
+      else items.push('大きな差（±24〜48 Hz）でも、ときどき逆の答えがありました（正答率 ' + accPct + '％）。押し間違いや聞き逃し、途中で集中が切れたことなどが考えられます。');
       if (fit.edge) items.push('推定値が計算の範囲の端に当たりました。数値はおよその目安として見てください。');
     }
     ul.innerHTML = items.map(t => '<li>' + t + '</li>').join('');
