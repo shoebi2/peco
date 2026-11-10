@@ -4,21 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>L を探す｜知覚・認知心理学 第8回</title>
-<!--
-  知覚・認知心理学 第8回 「注意と意識」 課題「L を探す」（視覚探索）
-  ・単一の HTML ファイル。ネットワーク不要。PC（D / F キー、クリック）とスマートフォン（タップ）で動く。
-  ・Multi-Domain Task Battery（King et al., 2019, Nat Neurosci）の視覚探索課題の手続きに合わせた。
-    元のプログラム（github.com/maedbhk/MDTB-Cerebellum：sc1_run_visualSearch.m、sc1_make_taskFile.m、
-    makeSearchDisplay.m、makeSquare.m）を読んで、次の点を同じにした。
-    - 刺激：灰色の背景に、白い線の入った黒い四角（T と L）。回転なし。線の太さは四角の 6/40、T の縦線は左から 17/40。
-    - 並べ方：形の数に合わせたマス目を作り、マスの中でランダムにずらす（makeSearchDisplay.m を移植）。
-    - 1 ブロック 15 試行：同じ数が 5 試行ずつ（4→8→12、次のブロックは 12→8→4）。L あり・なしは 8 個ずつの 16 個から 15 個を選ぶ。
-    - 1 試行：表示 1.6 秒（この間に回答。答えても 1.6 秒は出たまま）＋「＋」0.4 秒。
-    - 回答：F＝L がある、D＝L がない（左手）。答えるとすぐ、中央より下に四角（正解は緑、誤りは赤）。時間切れは表示なし。
-    - 練習：元の行動実験用の遅い版（2.6 秒）。
-  ・授業向けの変更：本番は 6 ブロック（90 試行、約 3 分）。ブロックの間に休憩画面。正誤の四角に ○ / × を重ねる（色だけに頼らないため）。
-  ・終了後、正しく答えた試行の反応時間の中央値から探索関数と傾き（ms/個）を出し、King らの公開データ（OpenNeuro ds002105、24 人）と並べて表示する。
--->
 <style>
   :root {
     --navy: #1B2A49; --indigo: #3A5BA0; --amber: #C98A2B; --grey: #8A8F94; --ink: #2B3A42; --light: #EEF1F8;
@@ -107,6 +92,7 @@
       <ul>
         <li>LINE などの<strong>アプリ内ブラウザではなく、Safari や Chrome</strong> で開いてください（QR コードを読んだら「ブラウザで開く」）。</li>
         <li>スマートフォンは<strong>縦向き</strong>のままで行ってください。画面の明るさを上げてください。</li>
+        <li>参加は自由です。結果を送らなくても、成績には関係しません。送った結果は、次回、だれの結果かわからない形でクラス全体の分布として紹介します。</li>
       </ul>
     </div>
     <ol>
@@ -114,7 +100,7 @@
       <li>答えると、すぐに画面の下のほうに四角が出ます。<strong>緑の ○ は正解、赤の × はまちがい</strong>です。1.6 秒のうちに答えないと、何も出ずに次へ進みます。</li>
       <li>練習 <span id="n-practice">6</span> 回（少しゆっくり）のあと、本番は <span id="n-block">6</span> ブロック × <span id="n-per">15</span> 回＝<span id="n-main">90</span> 回（約 3 分）。ブロックの間で休めます。</li>
     </ol>
-    <p class="small">この課題は、脳の研究で使われた課題（Multi-Domain Task Battery の視覚探索；King et al., 2019）と同じ形・同じ時間・同じ手順で作りました。終わると、あなたの「探索関数」（形の数と、答えるまでの時間の関係）が、King らの研究に参加した 24 人の結果と並べて表示されます。最後に「結果をフォームで送る」ボタンから、<strong>その場で結果を送信</strong>してください。</p>
+    <p class="small">この課題は、脳の研究で使われた課題（Multi-Domain Task Battery の視覚探索；King et al., 2019）と同じ形・同じ時間で作りました（ブロックの数と練習は授業用に変えています）。終わると、あなたの「探索関数」（形の数と、答えるまでの時間の関係）が、King らの研究に参加した 24 人の結果と並べて表示されます。最後に「結果をフォームで送る」ボタンから、<strong>その場で結果を送信</strong>してください。</p>
     <div class="row">
       <button class="btn" id="to-setup">設定にすすむ</button>
     </div>
@@ -213,7 +199,7 @@
     blocks: parseInt(params.get('blocks') || '6', 10),   // King らの 1 ブロック 15 試行 × 6 ブロック = 90 試行
     perSize: 5,                        // 1 ブロックの中で、同じ数が 5 試行ずつ続く
     practice: [[4, 1], [8, 0], [12, 1], [4, 0], [12, 0], [8, 1]],
-    formBase: 'https://docs.google.com/forms/d/e/1FAIpQLSfJUqn1M_xhcVcNgjPNwHik34bDP4yByuTpGueZQK-vyPOeKw/viewform',   // PECO_08_課題結果_2026-11-13
+    formBase: 'https://docs.google.com/forms/d/e/1FAIpQLSfJUqn1M_xhcVcNgjPNwHik34bDP4yByuTpGueZQK-vyPOeKw/viewform',
     formShort: 'https://docs.google.com/forms/d/e/1FAIpQLSfJUqn1M_xhcVcNgjPNwHik34bDP4yByuTpGueZQK-vyPOeKw/viewform',
     formCode: 'entry.925922133', formTrials: 'entry.989279830',   // 結果コード・試行データの欄
     stimMs: 1600, itiMs: 400,          // King らの本番：表示 1.6 秒（この間に回答）＋「＋」0.4 秒
@@ -465,10 +451,10 @@
     drawChart(s);
     const items = [];
     if (isFinite(s.P.slope)) {
-      if (s.P.slope > 2) items.push('形が増えるほど、L を見つけるまでの時間が長くなりました（1 個あたり ' + fmt(s.P.slope, 1) + ' ミリ秒。King らの 24 人は ' + K.ps + ' ミリ秒）。L は T の中で目に飛び込んでこないので、1 つずつ確かめながら探していたと考えられます。');
+      if (s.P.slope > 2) items.push('形が増えるほど、L を見つけるまでの時間が長くなりました（1 個あたり ' + fmt(s.P.slope, 1) + ' ミリ秒。King らの 24 人は ' + K.ps + ' ミリ秒）。L は T の中で目に飛び込んでこないので、1 つずつ確かめながら探していた可能性があります。');
       else items.push('今回は、形が増えても L を見つける時間があまり伸びませんでした（1 個あたり ' + fmt(s.P.slope, 1) + ' ミリ秒。King らの 24 人は ' + K.ps + ' ミリ秒）。1 人分の試行は少ないので、たまたまの可能性もあります。クラス全体の結果と比べてみましょう。');
     }
-    if (isFinite(s.A.slope) && isFinite(s.P.slope) && s.A.slope > s.P.slope) items.push('L が「ない」と答えるまでの時間は、形が増えるとさらに大きく伸びました（1 個あたり ' + fmt(s.A.slope, 1) + ' ミリ秒）。「ない」と言うには、全部の形を確かめる必要があるためと考えられます。');
+    if (isFinite(s.A.slope) && isFinite(s.P.slope) && s.A.slope > s.P.slope) items.push('L が「ない」と答えるまでの時間は、形が増えるとさらに大きく伸びました（1 個あたり ' + fmt(s.A.slope, 1) + ' ミリ秒）。「ない」と答えるには、「もう十分に探した」と思えるまで探し続ける必要があるためと考えられます。');
     const pm = s.P.med.filter(isFinite), am = s.A.med.filter(isFinite);
     if (pm.length && am.length) {
       const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
