@@ -30,6 +30,7 @@
   .btn:hover { filter: brightness(1.08); }
   .btn.secondary { background: #fff; color: var(--indigo); border: 2px solid var(--indigo); }
   .btn[disabled] { opacity: 0.4; cursor: default; }
+  .gate { background: #FFF4E0; border-left: 4px solid #C8861E; border-radius: 6px; padding: 10px 14px; margin: 0.8em 0; }
   .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 1.2em; }
   .card { background: var(--light); border-radius: 10px; padding: 14px 18px; margin: 0.8em 0; }
   .card h3 { margin: 0 0 0.4em; color: var(--navy); font-size: 1rem; }
@@ -101,6 +102,7 @@
       <li>練習 <span id="n-practice">6</span> 回（少しゆっくり）のあと、本番は <span id="n-block">6</span> ブロック × <span id="n-per">15</span> 回＝<span id="n-main">90</span> 回（約 3 分）。ブロックの間で休めます。</li>
     </ol>
     <p class="small">この課題は、脳の研究で使われた課題（Multi-Domain Task Battery の視覚探索；King et al., 2019）と同じ形・同じ時間で作りました（ブロックの数と練習は授業用に変えています）。終わると、あなたの「探索関数」（形の数と、答えるまでの時間の関係）が、King らの研究に参加した 24 人の結果と並べて表示されます。最後に「結果をフォームで送る」ボタンから、<strong>その場で結果を送信</strong>してください。</p>
+    <p class="gate" id="gate-msg" hidden>この課題は、<strong>11月13日（金）14:40</strong> から始められます。授業で合図があるまで待ってください。</p>
     <div class="row">
       <button class="btn" id="to-setup">設定にすすむ</button>
     </div>
@@ -297,7 +299,18 @@
     document.getElementById('start-practice').disabled = false;
     document.getElementById('setup-msg').textContent = '準備ができました。練習をはじめてください。';
   }));
-  document.getElementById('to-setup').addEventListener('click', () => show('setup'));
+  // 授業の時間（2026-11-13 14:40 JST）までは始められない。開いたままでも時刻になれば押せるようになる。?preview で確認用に開ける
+  const OPEN_AT = Date.parse('2026-11-13T14:40:00+09:00');
+  const PREVIEW = new URLSearchParams(location.search).has('preview');
+  const toSetup = document.getElementById('to-setup'), gateMsg = document.getElementById('gate-msg');
+  function gateClosed() { return !PREVIEW && Date.now() < OPEN_AT; }
+  function updateGate() {
+    const closed = gateClosed();
+    toSetup.disabled = closed; gateMsg.hidden = !closed;
+    if (closed) setTimeout(updateGate, Math.min(OPEN_AT - Date.now() + 500, 30000));
+  }
+  updateGate();
+  toSetup.addEventListener('click', () => { if (!gateClosed()) show('setup'); });
 
   // sc1_make_taskFile.m と同じ組み方：L あり 8 個・なし 8 個を混ぜて 15 個を取り、数は 5 試行ずつ（偶数ブロックは 4→8→12、奇数ブロックは 12→8→4）
   function buildBlock(b) {
