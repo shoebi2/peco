@@ -299,7 +299,7 @@
     document.getElementById('start-practice').disabled = false;
     document.getElementById('setup-msg').textContent = '準備ができました。練習をはじめてください。';
   }));
-  // 授業の時間（2026-11-13 14:40 JST）までは始められない。開いたままでも時刻になれば押せるようになる。?preview で確認用に開ける
+  // 授業の時間までは始められない。開いたままでも時刻になれば押せるようになる
   const OPEN_AT = Date.parse('2026-11-13T14:40:00+09:00');
   const PREVIEW = new URLSearchParams(location.search).has('preview');
   const toSetup = document.getElementById('to-setup'), gateMsg = document.getElementById('gate-msg');

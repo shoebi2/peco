@@ -175,7 +175,7 @@
     stimMs: 500, soaMs: 2500, leadMs: 1500, minRtMs: 150,
     letters: 'BCDFGHJKLMNPQRSTVWXZ'.split(''),
     formBase: 'https://docs.google.com/forms/d/e/1FAIpQLSeNaW2gwFFURpsfuR5OYk-xYsKjDAOWfGcuqn3oIYCj5Pn4pg/viewform',
-    formCode: 'entry.925922133', formTrials: 'entry.989279830',   // 結果コード・試行データの欄（PECO_09_課題）
+    formCode: 'entry.925922133', formTrials: 'entry.989279830',   // 結果コード・試行データの欄
     ref: { d: [3.2, 2.05, 1.3], rt: [0.56, 0.665, 0.63] },
     version: 'NB1'
   };
@@ -189,7 +189,7 @@
   const openAt = new Date(CONFIG.openAt);
   document.getElementById('open-at').textContent = (openAt.getMonth() + 1) + '月' + openAt.getDate() + '日 ' + String(openAt.getHours()).padStart(2, '0') + ':' + String(openAt.getMinutes()).padStart(2, '0');
   const preview = params.get('preview') === '1' || AUTO;
-  // 授業の時間（2026-11-20 14:40 JST）までは始められない。開いたままでも時刻になれば始められる。?preview=1 で確認用に開ける
+  // 授業の時間までは始められない。開いたままでも時刻になれば始められる
   if (!preview && Date.now() < openAt.getTime()) {
     show('locked');
     const timer = setInterval(() => { if (Date.now() >= openAt.getTime()) { clearInterval(timer); show('intro'); } }, 5000);
