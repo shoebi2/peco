@@ -187,7 +187,8 @@
   document.querySelectorAll('.screen').forEach(s => screens[s.id] = s);
   function show(id) { Object.values(screens).forEach(s => s.classList.remove('active')); screens[id].classList.add('active'); window.scrollTo(0, 0); }
   const openAt = new Date(CONFIG.openAt);
-  document.getElementById('open-at').textContent = (openAt.getMonth() + 1) + '月' + openAt.getDate() + '日 ' + String(openAt.getHours()).padStart(2, '0') + ':' + String(openAt.getMinutes()).padStart(2, '0');
+  const jst = new Date(openAt.getTime() + 9 * 3600 * 1000);
+  document.getElementById('open-at').textContent = (jst.getUTCMonth() + 1) + '月' + jst.getUTCDate() + '日 ' + String(jst.getUTCHours()).padStart(2, '0') + ':' + String(jst.getUTCMinutes()).padStart(2, '0');
   const preview = params.get('preview') === '1' || AUTO;
   // 授業の時間までは始められない。開いたままでも時刻になれば始められる
   if (!preview && Date.now() < openAt.getTime()) {
