@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>n-back｜知覚・認知心理学 第9回</title>
+<style>
+  :root { --navy:#1B2A49; --indigo:#3A5BA0; --amber:#C98A2B; --grey:#8A8F94; --ink:#2B3A42; --light:#EEF1F8; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:#fff; color:var(--ink);
+    font-family:"Helvetica Neue","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo","Noto Sans JP","Noto Sans CJK JP",sans-serif; -webkit-text-size-adjust:100%; }
+  body { display:flex; flex-direction:column; min-height:100vh; }
+  .screen { display:none; flex:1; flex-direction:column; }
+  .screen.active { display:flex; }
+  .wrap { max-width:760px; margin:0 auto; padding:28px 20px 40px; width:100%; }
+  h1 { color:var(--navy); font-size:1.5rem; margin:0 0 0.3em; line-height:1.3; }
+  h2 { color:var(--navy); font-size:1.15rem; margin:1.2em 0 0.4em; }
+  p, li { line-height:1.7; font-size:1rem; }
+  .lead { color:var(--indigo); font-weight:700; }
+  .small { font-size:0.85rem; color:var(--grey); }
+  .term { background:var(--light); color:var(--navy); padding:0.05em 0.45em; border-radius:5px; font-weight:700; white-space:nowrap; }
+  ol, ul { padding-left:1.4em; }
+  button { font:inherit; }
+  a.btn { text-decoration:none; }
+  .btn { display:inline-block; background:var(--indigo); color:#fff; border:none; border-radius:8px; padding:0.75em 1.6em; font-size:1.05rem; font-weight:700; cursor:pointer; }
+  .btn.secondary { background:#fff; color:var(--indigo); border:2px solid var(--indigo); }
+  .btn[disabled] { opacity:0.4; cursor:default; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:1.2em; }
+  .card { background:var(--light); border-radius:10px; padding:14px 18px; margin:0.8em 0; }
+  .card h3 { margin:0 0 0.4em; color:var(--navy); font-size:1rem; }
+  .choice { display:flex; flex-wrap:wrap; gap:8px; margin:0.4em 0; }
+  .choice button { background:#fff; color:var(--navy); border:2px solid #C9D3D8; border-radius:8px; padding:0.5em 0.9em; font-size:0.95rem; cursor:pointer; }
+  .choice button.sel { border-color:var(--indigo); background:var(--indigo); color:#fff; font-weight:700; }
+  .seq { display:flex; gap:8px; justify-content:center; margin:0.6em 0; flex-wrap:wrap; }
+  .seq span { width:44px; height:54px; display:flex; align-items:center; justify-content:center; background:var(--light); border-radius:8px; font-size:1.6rem; font-weight:700; color:var(--navy); }
+  .seq span.hit { background:#F2CF94; }
+  #trial { position:relative; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
+  #progress { position:absolute; top:0; left:0; height:5px; background:var(--indigo); width:0; transition:width 0.15s; }
+  #question { text-align:center; color:var(--navy); font-weight:700; font-size:1.15rem; padding:18px 16px 0; }
+  #question .sub { display:block; font-weight:400; color:var(--grey); font-size:0.85rem; margin-top:0.15em; }
+  #stage { flex:1; display:flex; align-items:center; justify-content:center; position:relative; min-height:220px; }
+  #letter { font-size:min(34vw, 180px); font-weight:700; color:var(--navy); line-height:1; min-height:1em; }
+  #feedback { position:absolute; left:50%; top:10px; transform:translateX(-50%); font-size:1.05rem; font-weight:700; display:none; background:#fff; padding:0.2em 0.8em; border-radius:8px; border:2px solid var(--amber); color:var(--amber); white-space:nowrap; }
+  #feedback.ok { color:var(--indigo); border-color:var(--indigo); }
+  #buttons { display:flex; justify-content:center; padding:8px 16px 18px; }
+  #buttons .btn { width:100%; max-width:420px; font-size:1.3rem; padding:1.1em 0; }
+  #hint { text-align:center; color:var(--grey); font-size:0.85rem; padding-bottom:10px; }
+  .stats { display:flex; gap:14px; flex-wrap:wrap; margin:0.8em 0; }
+  .stat { flex:1 1 150px; background:var(--light); border-radius:10px; padding:12px 14px; }
+  .stat .label { font-size:0.8rem; font-weight:700; color:var(--indigo); }
+  .stat .value { font-size:1.9rem; font-weight:700; color:var(--navy); line-height:1.2; }
+  .stat .note { font-size:0.78rem; color:var(--grey); }
+  #chart { width:100%; max-width:720px; height:auto; display:block; margin:0.5em auto; }
+  #code { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.95rem; background:#fff; border:2px dashed var(--indigo); border-radius:8px; padding:10px 12px; word-break:break-all; margin:0.5em 0; user-select:all; -webkit-user-select:all; }
+  table.cells { border-collapse:collapse; font-size:0.85rem; margin:0.4em 0; }
+  table.cells th, table.cells td { border:1px solid #C9D3D8; padding:0.3em 0.6em; text-align:right; }
+  table.cells th { background:var(--navy); color:#fff; }
+  .tablewrap { overflow-x:auto; }
+  #form-url { word-break:break-all; }
+  @media (max-width:600px) { h1 { font-size:1.25rem; } p, li { font-size:0.95rem; } }
+</style>
+</head>
+<body>
+
+<section id="locked" class="screen">
+  <div class="wrap">
+    <h1>n-back</h1>
+    <p class="lead">知覚・認知心理学 第9回</p>
+    <p>この課題は、授業の時間（<span id="open-at"></span>）から始められます。</p>
+  </div>
+</section>
+
+<section id="intro" class="screen">
+  <div class="wrap">
+    <h1>n-back：いまの文字は、n 個前と同じ？</h1>
+    <p class="lead">知覚・認知心理学 第9回　演習：ワーキングメモリ</p>
+    <p>画面の真ん中に、アルファベットが 1 文字ずつ出ます。<strong>いまの文字が、n 個前の文字と同じなら、ボタンを押してください</strong>。違うときは押しません。</p>
+    <div class="card">
+      <h3>例：2-back（2 つ前と比べる）</h3>
+      <div class="seq"><span>A</span><span>B</span><span class="hit">A</span><span>C</span><span>C</span><span>B</span></div>
+      <p class="small" style="text-align:center">3 つ目の A は、2 つ前の A と同じなので押す。5 つ目の C は 1 つ前と同じだが、2 つ前（A）とは違うので押さない。</p>
+    </div>
+    <div class="card">
+      <h3>はじめる前に</h3>
+      <ul>
+        <li>LINE などのアプリ内ブラウザではなく、<strong>Safari や Chrome</strong> で開いてください。</li>
+        <li>参加は自由です。結果を送らなくても、成績には関係しません。送った結果は、次回、だれの結果かわからない形でクラス全体の分布として紹介します。</li>
+      </ul>
+    </div>
+    <ol>
+      <li>文字は <strong>0.5 秒</strong>出て消え、<strong>2.5 秒</strong>ごとに次の文字が出ます。同じだと思ったら、次の文字が出る前にボタン（PC は <span class="term">スペース</span> キー）を押します。</li>
+      <li>はじめに 1-back の練習（<span id="n-prac"></span> 文字）をします。練習では、押すと ○ か × が出ます。</li>
+      <li>本番は <strong>1-back → 2-back → 3-back</strong> の 3 つです（それぞれ約 1 分、合わせて約 4 分）。本番では ○ × は出ません。</li>
+    </ol>
+    <p class="small">n-back は、Kirchner (1958) が考案し、いまもワーキングメモリの研究や、脳の画像の研究でよく使われている課題です。終わると、n ごとの成績が表示されます。最後に「結果をフォームで送る」ボタンから、その場で結果を送信してください。</p>
+    <div class="row"><button class="btn" id="to-setup">設定にすすむ</button></div>
+  </div>
+</section>
+
+<section id="setup" class="screen">
+  <div class="wrap">
+    <h1>設定</h1>
+    <div class="card">
+      <h3>使っている端末</h3>
+      <div class="choice" id="dev-choice">
+        <button data-v="P">スマートフォン</button>
+        <button data-v="T">タブレット</button>
+        <button data-v="C">PC（キーボード）</button>
+        <button data-v="M">PC（マウス・タッチパッド）</button>
+      </div>
+    </div>
+    <p class="small" id="setup-msg">端末を選ぶと、練習をはじめられます。</p>
+    <div class="row"><button class="btn" id="start-practice" disabled>練習をはじめる</button></div>
+  </div>
+</section>
+
+<section id="trial" class="screen">
+  <div id="progress"></div>
+  <div id="question"><span id="q-main"></span><span class="sub" id="trial-counter"></span></div>
+  <div id="stage"><div id="letter"></div><div id="feedback"></div></div>
+  <div id="buttons"><button class="btn" id="press" disabled>同じ</button></div>
+  <div id="hint">PC はスペースキーでも答えられます</div>
+</section>
+
+<section id="between" class="screen">
+  <div class="wrap">
+    <h1 id="between-title"></h1>
+    <p id="between-msg"></p>
+    <div class="card" id="between-card"></div>
+    <div class="row"><button class="btn" id="start-block">はじめる</button><button class="btn secondary" id="redo-practice">もう一度練習する</button></div>
+  </div>
+</section>
+
+<section id="result" class="screen">
+  <div class="wrap">
+    <h1>結果：さかのぼる数と成績</h1>
+    <div class="row"><a class="btn" id="send-form-top" href="#" target="_blank" rel="noopener">結果をフォームで送る</a></div>
+    <p class="small">まず結果を送ってください。フォームが開いたら、学籍番号と氏名を入れて「送信」を押します。結果は授業内の集計にのみ使います。</p>
+    <p class="small">横軸はさかのぼる数（n）、縦軸は見分けやすさ（d′）。d′ は「同じ」のときに押せた割合と、「違う」のときにまちがえて押した割合から計算し、大きいほどよく見分けられています。灰色の点線は、0-back〜7-back を調べた研究の 58 人の平均（図から読み取った値。文字の出し方や回数はこの課題と少し違います）。</p>
+    <svg id="chart" viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="stats">
+      <div class="stat"><div class="label">1-back</div><div class="value" id="r-1">–</div><div class="note" id="r-1n"></div></div>
+      <div class="stat"><div class="label">2-back</div><div class="value" id="r-2">–</div><div class="note" id="r-2n"></div></div>
+      <div class="stat"><div class="label">3-back</div><div class="value" id="r-3">–</div><div class="note" id="r-3n"></div></div>
+    </div>
+    <h2>あなたの結果の特徴</h2>
+    <ul id="r-features"></ul>
+    <h2>結果を送る（いますぐ）</h2>
+    <p>下のボタンでフォームが開きます。結果コードと試行データはすでに入っているので、<strong>学籍番号と氏名を入れて「送信」</strong>を押してください（上のボタンで送った人は不要です）。</p>
+    <div class="row"><a class="btn" id="send-form" href="#" target="_blank" rel="noopener">結果をフォームで送る</a></div>
+    <p class="small">フォームが開かないときは、結果コードをコピーして、フォーム（<span id="form-url"></span>）の「結果コード」欄に貼り付けてください。</p>
+    <div id="code">–</div>
+    <div class="row">
+      <button class="btn secondary" id="copy">結果コードをコピー</button>
+      <button class="btn secondary" id="csv">試行データ（CSV）を保存</button>
+      <span id="copied" class="small"></span>
+    </div>
+    <h2>n ごとの結果</h2>
+    <div class="tablewrap" id="table"></div>
+    <p class="small">参考：Kirchner, W. K. (1958). Age differences in short-term retention of rapidly changing information. <i>Journal of Experimental Psychology, 55</i>, 352–358.／Chiyohara, S., Asai, T., Hiromitsu, K., &amp; Imamizu, H. (2026). Characterizing load-dependent changes in whole-brain activity patterns during an extended N-back task. <i>bioRxiv</i>. https://doi.org/10.64898/2026.06.19.733380</p>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  const params = new URLSearchParams(location.search);
+  const AUTO = params.get('auto') === '1';
+  const CONFIG = {
+    openAt: '2026-11-20T14:40:00+09:00',
+    levels: [1, 2, 3],
+    nMain: 20,                 // 判定する試行（はじめの n 試行は比べる相手がないので数えない）
+    nTarget: 6, nLure: 2,      // 「同じ」6 回、まぎらわしい文字（n±1 個前と同じ）2 回
+    nPractice: 12, practiceTarget: 4,
+    stimMs: 500, soaMs: 2500, leadMs: 1500, minRtMs: 150,
+    letters: 'BCDFGHJKLMNPQRSTVWXZ'.split(''),
+    formBase: 'https://docs.google.com/forms/d/e/1FAIpQLSeNaW2gwFFURpsfuR5OYk-xYsKjDAOWfGcuqn3oIYCj5Pn4pg/viewform',
+    formCode: 'entry.925922133', formTrials: 'entry.989279830',   // 結果コード・試行データの欄（PECO_09_課題）
+    ref: { d: [3.2, 2.05, 1.3], rt: [0.56, 0.665, 0.63] },
+    version: 'NB1'
+  };
+  if (AUTO) { CONFIG.stimMs = 40; CONFIG.soaMs = 80; CONFIG.leadMs = 50; CONFIG.minRtMs = 0; }
+  document.getElementById('n-prac').textContent = CONFIG.nPractice;
+  if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) document.getElementById('hint').textContent = '';
+
+  const screens = {};
+  document.querySelectorAll('.screen').forEach(s => screens[s.id] = s);
+  function show(id) { Object.values(screens).forEach(s => s.classList.remove('active')); screens[id].classList.add('active'); window.scrollTo(0, 0); }
+  const openAt = new Date(CONFIG.openAt);
+  document.getElementById('open-at').textContent = (openAt.getMonth() + 1) + '月' + openAt.getDate() + '日 ' + String(openAt.getHours()).padStart(2, '0') + ':' + String(openAt.getMinutes()).padStart(2, '0');
+  const preview = params.get('preview') === '1' || AUTO;
+  // 授業の時間（2026-11-20 14:40 JST）までは始められない。開いたままでも時刻になれば始められる。?preview=1 で確認用に開ける
+  if (!preview && Date.now() < openAt.getTime()) {
+    show('locked');
+    const timer = setInterval(() => { if (Date.now() >= openAt.getTime()) { clearInterval(timer); show('intro'); } }, 5000);
+  } else show('intro');
+
+  function detectUA() {
+    const u = navigator.userAgent || '';
+    const iOS = /iPhone|iPad|iPod/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1);
+    const os = iOS ? 'iOS' : /Android/.test(u) ? 'And' : /Macintosh/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Win' : 'Oth';
+    const br = /Firefox|FxiOS/.test(u) ? 'Fx' : /Edg|Chrome|CriOS/.test(u) ? 'Chr' : /Safari/.test(u) ? 'Saf' : 'Oth';
+    return os + '.' + br;
+  }
+  const UA = detectUA();
+  const sessionId = Math.random().toString(36).slice(2, 6);
+  let device = '';
+
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function pick(ex) { const c = CONFIG.letters.filter(l => !ex.includes(l)); return c[Math.floor(Math.random() * c.length)]; }
+  // 系列を作る：判定する試行のうち nTarget 回は n 個前と同じ（target）、nLure 回は n±1 個前と同じ（lure）、残りはどれとも違う
+  function makeSeq(n, nJudge, nT, nL) {
+    for (let tries = 0; tries < 200; tries++) {
+      const kinds = shuffle(Array(nT).fill('T').concat(Array(nL).fill('L'), Array(nJudge - nT - nL).fill('N')));
+      const s = [];
+      for (let i = 0; i < n; i++) s.push(pick(s.slice(-3)));
+      let ok = true;
+      for (let k = 0; k < nJudge; k++) {
+        const i = s.length, back = s[i - n];
+        if (kinds[k] === 'T') s.push(back);
+        else if (kinds[k] === 'L') {
+          const cand = [n - 1, n + 1].filter(m => m >= 1 && i - m >= 0).map(m => s[i - m]).filter(l => l !== back);
+          if (!cand.length) { ok = false; break; }
+          s.push(cand[Math.floor(Math.random() * cand.length)]);
+        } else s.push(pick([back, s[i - 1], s[i - 2], s[i - 3]].filter(Boolean)));
+      }
+      if (!ok) continue;
+      const items = s.map((l, i) => ({ letter: l, target: i >= n && l === s[i - n] ? 1 : 0, lure: i >= n && l !== s[i - n] && ((i - n + 1 >= 0 && l === s[i - n + 1] && n > 1) || (i - n - 1 >= 0 && l === s[i - n - 1])) ? 1 : 0, judged: i >= n ? 1 : 0 }));
+      if (items.filter(t => t.judged && t.target).length === nT) return items;
+    }
+    throw new Error('seq');
+  }
+
+  document.getElementById('to-setup').onclick = () => show('setup');
+  document.querySelectorAll('#dev-choice button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#dev-choice button').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); device = b.dataset.v;
+    document.getElementById('start-practice').disabled = false; document.getElementById('setup-msg').textContent = '準備ができたら、練習をはじめてください。';
+  });
+
+  const data = [];
+  let phase = 'practice', levelIdx = 0;
+  const letterEl = document.getElementById('letter'), fb = document.getElementById('feedback'), press = document.getElementById('press');
+  function runBlock(n, items, isPractice, done) {
+    show('trial');
+    document.getElementById('q-main').textContent = n + '-back：' + n + ' つ前と同じなら押す';
+    let idx = -1, onset = 0, responded = false, cur = null;
+    const res = [];
+    function respond() {
+      if (idx < 0 || responded || !cur) return;
+      const rt = performance.now() - onset;
+      if (rt < CONFIG.minRtMs) return;
+      responded = true; cur.resp = 1; cur.rt = Math.round(rt);
+      if (isPractice) { fb.textContent = cur.target ? '○' : '×'; fb.className = cur.target ? 'ok' : ''; fb.style.display = 'block'; }
+    }
+    press.onclick = respond; press.disabled = false;
+    document.onkeydown = e => { if (e.code === 'Space') { e.preventDefault(); respond(); } };
+    function next() {
+      if (cur) res.push(cur);
+      idx++;
+      fb.style.display = 'none';
+      if (idx >= items.length) { press.disabled = true; document.onkeydown = null; letterEl.textContent = ''; done(res); return; }
+      cur = Object.assign({ n: n, i: idx, resp: 0, rt: 0 }, items[idx]); responded = false;
+      letterEl.textContent = cur.letter; onset = performance.now();
+      document.getElementById('progress').style.width = ((idx + 1) / items.length * 100) + '%';
+      document.getElementById('trial-counter').textContent = (isPractice ? '練習 ' : '本番 ') + (idx + 1) + ' / ' + items.length;
+      setTimeout(() => { letterEl.textContent = ''; }, CONFIG.stimMs);
+      if (AUTO) setTimeout(() => { if (Math.random() < (cur.target ? 0.85 - 0.15 * (n - 1) : 0.08 * n)) respond(); }, 20);
+      setTimeout(next, CONFIG.soaMs);
+    }
+    letterEl.textContent = '＋';
+    setTimeout(next, CONFIG.leadMs);
+  }
+
+  function startPractice() {
+    phase = 'practice';
+    runBlock(1, makeSeq(1, CONFIG.nPractice - 1, CONFIG.practiceTarget, 1), true, res => {
+      const t = res.filter(r => r.judged);
+      const hit = t.filter(r => r.target && r.resp).length, nt = t.filter(r => r.target).length, fa = t.filter(r => !r.target && r.resp).length;
+      document.getElementById('between-title').textContent = '練習おわり';
+      document.getElementById('between-msg').textContent = '「同じ」' + nt + ' 回のうち ' + hit + ' 回押せました。まちがえて押したのは ' + fa + ' 回です。';
+      setNext(0);
+      document.getElementById('redo-practice').style.display = '';
+      show('between');
+      if (AUTO) setTimeout(() => document.getElementById('start-block').click(), 30);
+    });
+  }
+  function setNext(li) {
+    const n = CONFIG.levels[li];
+    document.getElementById('between-card').innerHTML = '<h3>次は ' + n + '-back（本番）</h3><p>いまの文字が <strong>' + n + ' つ前</strong>の文字と同じなら押します。' + (n > 1 ? 'すぐ前ではなく、' + n + ' つ前です。' : '') + '本番では ○ × は出ません。</p>';
+    document.getElementById('start-block').textContent = n + '-back をはじめる';
+    levelIdx = li;
+  }
+  document.getElementById('start-practice').onclick = startPractice;
+  document.getElementById('redo-practice').onclick = startPractice;
+  document.getElementById('start-block').onclick = () => {
+    const n = CONFIG.levels[levelIdx];
+    runBlock(n, makeSeq(n, CONFIG.nMain, CONFIG.nTarget, CONFIG.nLure), false, res => {
+      res.forEach(r => data.push(r));
+      document.getElementById('redo-practice').style.display = 'none';
+      if (levelIdx + 1 < CONFIG.levels.length) {
+        document.getElementById('between-title').textContent = n + '-back おわり';
+        document.getElementById('between-msg').textContent = 'ひと休みしてから、次に進んでください。';
+        setNext(levelIdx + 1); show('between');
+        if (AUTO) setTimeout(() => document.getElementById('start-block').click(), 30);
+      } else showResult();
+    });
+  };
+
+  // d′：ヒット率と誤警報率に対数線形の補正（0.5 を足す）をして計算
+  function zinv(p) { // 標準正規分布の分位点（Acklam の近似）
+    const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];
+    const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+    const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+    const pl = 0.02425, ph = 1 - pl; let q, r;
+    if (p < pl) { q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    if (p <= ph) { q = p - 0.5; r = q * q; return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1); }
+    q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  function fmt(v, k) { return (v === null || isNaN(v)) ? 'NA' : v.toFixed(k); }
+  function summary() {
+    return CONFIG.levels.map(n => {
+      const t = data.filter(r => r.n === n && r.judged);
+      const T = t.filter(r => r.target), N = t.filter(r => !r.target);
+      const hit = T.filter(r => r.resp).length, fa = N.filter(r => r.resp).length;
+      const hr = (hit + 0.5) / (T.length + 1), fr = (fa + 0.5) / (N.length + 1);
+      const rts = T.filter(r => r.resp).map(r => r.rt).sort((a, b) => a - b);
+      const med = rts.length ? (rts.length % 2 ? rts[(rts.length - 1) / 2] : (rts[rts.length / 2 - 1] + rts[rts.length / 2]) / 2) : null;
+      const acc = (hit + (N.length - fa)) / t.length;
+      return { n, hit, nT: T.length, fa, nN: N.length, d: zinv(hr) - zinv(fr), acc, med };
+    });
+  }
+  function showResult() {
+    show('result');
+    const S = summary();
+    S.forEach(s => {
+      document.getElementById('r-' + s.n).textContent = 'd′ ' + fmt(s.d, 2);
+      document.getElementById('r-' + s.n + 'n').textContent = '押せた ' + s.hit + '/' + s.nT + '・まちがって押した ' + s.fa + '/' + s.nN + '・正答率 ' + Math.round(s.acc * 100) + '%';
+    });
+    const f = [];
+    const dd = S.map(s => s.d);
+    if (dd[0] > dd[1] && dd[1] > dd[2]) f.push('さかのぼる数が増えるほど、見分けにくくなりました（多くの人と同じ形です）。');
+    else f.push('さかのぼる数と成績の関係が、まっすぐ下がる形ではありませんでした。1 人あたりの試行が少ないので、偶然のゆれも大きくなります。');
+    if (S[2].fa > S[0].fa) f.push('3-back では、まちがって押す回数も増えました。似た文字（すぐ前や 4 つ前と同じ文字）にまどわされやすくなります。');
+    if (S[1].med && S[0].med) f.push('「同じ」と押すまでの時間（中央値）：1-back ' + Math.round(S[0].med) + ' ms、2-back ' + Math.round(S[1].med) + ' ms' + (S[2].med ? '、3-back ' + Math.round(S[2].med) + ' ms' : '') + '。');
+    document.getElementById('r-features').innerHTML = f.map(t => '<li>' + t + '</li>').join('');
+    let html = '<table class="cells"><tr><th></th>' + S.map(s => '<th>' + s.n + '-back</th>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">押せた（同じのとき）</td>' + S.map(s => '<td>' + s.hit + ' / ' + s.nT + '</td>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">まちがって押した（違うとき）</td>' + S.map(s => '<td>' + s.fa + ' / ' + s.nN + '</td>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">正答率</td>' + S.map(s => '<td>' + Math.round(s.acc * 100) + '%</td>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">d′</td>' + S.map(s => '<td>' + fmt(s.d, 2) + '</td>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">押すまでの時間（ms）</td>' + S.map(s => '<td>' + (s.med ? Math.round(s.med) : '–') + '</td>').join('') + '</tr>';
+    html += '<tr><td style="text-align:left">研究の 58 人：d′</td>' + CONFIG.ref.d.map(v => '<td>' + v + '</td>').join('') + '</tr></table>';
+    document.getElementById('table').innerHTML = html;
+    const code = [CONFIG.version, 'd=' + S.map(s => fmt(s.d, 2)).join(','), 'h=' + S.map(s => s.hit + '/' + s.nT).join(','), 'f=' + S.map(s => s.fa + '/' + s.nN).join(','),
+      'rt=' + S.map(s => s.med ? Math.round(s.med) : 'NA').join(','), 'dev=' + device, 'ua=' + UA, 'id=' + sessionId].join('|');
+    document.getElementById('code').textContent = code;
+    const trialStr = 'N1:' + data.filter(r => r.judged).map(r => r.n + '' + (r.target ? 'T' : r.lure ? 'L' : 'N') + r.resp + Math.min(1295, Math.round(r.rt / 10)).toString(36).padStart(2, '0')).join('');
+    const formUrl = CONFIG.formBase + '?usp=pp_url&' + CONFIG.formCode + '=' + encodeURIComponent(code) + '&' + CONFIG.formTrials + '=' + encodeURIComponent(trialStr);
+    document.getElementById('send-form').href = formUrl; document.getElementById('send-form-top').href = formUrl;
+    document.getElementById('form-url').textContent = CONFIG.formBase;
+    document.getElementById('copy').onclick = () => {
+      const t = code + '\n' + trialStr;
+      (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => document.getElementById('copied').textContent = 'コピーしました', () => document.getElementById('copied').textContent = '上の枠を長押しして選んでください');
+    };
+    document.getElementById('csv').onclick = () => {
+      const body = 'n,i,letter,target,lure,judged,resp,rt\n' + data.map(r => [r.n, r.i, r.letter, r.target, r.lure, r.judged, r.resp, r.rt].join(',')).join('\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], { type: 'text/csv' })); a.download = 'nback_' + sessionId + '.csv'; a.click();
+    };
+    drawChart(S);
+    if (AUTO) window.__RESULT__ = { code, trialStr, S };
+  }
+  function drawChart(S) {
+    const svg = document.getElementById('chart'), NS = 'http://www.w3.org/2000/svg';
+    const W = 720, H = 400, L = 80, R = 160, T = 30, B = 60, ymax = 4.5, ymin = -0.5;
+    function el(tag, at, txt) { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); if (txt !== undefined) e.textContent = txt; svg.appendChild(e); return e; }
+    const X = n => L + (n - 1) / 2 * (W - L - R), Y = v => T + (ymax - v) / (ymax - ymin) * (H - T - B);
+    [0, 1, 2, 3, 4].forEach(v => { el('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: '#E6E9EC', 'stroke-width': 1.5 }); el('text', { x: L - 12, y: Y(v) + 6, 'text-anchor': 'end', 'font-size': 18, fill: '#2B3A42' }, v); });
+    el('line', { x1: L, x2: W - R, y1: Y(ymin), y2: Y(ymin), stroke: '#9AA3AA', 'stroke-width': 1.5 });
+    CONFIG.levels.forEach(n => el('text', { x: X(n), y: H - B + 28, 'text-anchor': 'middle', 'font-size': 18, fill: '#2B3A42' }, n + '-back'));
+    el('text', { x: 22, y: Y(2), 'font-size': 18, fill: '#2B3A42', transform: 'rotate(-90 22 ' + Y(2) + ')', 'text-anchor': 'middle' }, '見分けやすさ d′');
+    el('path', { d: CONFIG.ref.d.map((v, i) => (i ? 'L' : 'M') + X(i + 1) + ',' + Y(v)).join(''), fill: 'none', stroke: '#9AA0A6', 'stroke-width': 2, 'stroke-dasharray': '4 4' });
+    el('text', { x: X(3) + 12, y: Y(CONFIG.ref.d[2]) + 6, 'font-size': 16, fill: '#8A8F94' }, '研究の58人');
+    const pts = S.map(s => [s.n, Math.max(ymin, Math.min(ymax, s.d))]);
+    el('path', { d: pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]) + ',' + Y(p[1])).join(''), fill: 'none', stroke: '#3A5BA0', 'stroke-width': 3 });
+    pts.forEach(p => el('circle', { cx: X(p[0]), cy: Y(p[1]), r: 7, fill: '#3A5BA0' }));
+    el('text', { x: X(3) + 12, y: Y(pts[2][1]) - 10, 'font-size': 18, 'font-weight': 700, fill: '#3A5BA0' }, 'あなた');
+  }
+})();
+</script>
+</body>
+</html>
