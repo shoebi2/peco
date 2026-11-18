@@ -83,14 +83,14 @@
     <div class="card">
       <h3>はじめる前に</h3>
       <ul>
-        <li>LINE などのアプリ内ブラウザではなく、<strong>Safari や Chrome</strong> で開いてください。</li>
+        <li>LINE などの<strong>アプリ内ブラウザではなく、Safari や Chrome</strong> で開いてください（QR コードを読んだら「ブラウザで開く」）。</li>
         <li>参加は自由です。結果を送らなくても、成績には関係しません。送った結果は、次回、だれの結果かわからない形でクラス全体の分布として紹介します。</li>
       </ul>
     </div>
     <ol>
       <li>文字は <strong>0.4 秒</strong>出て消え、<strong>平均 1.6 秒</strong>ごと（1.2〜2.0 秒）に次の文字が出ます。同じだと思ったら、次の文字が出る前にボタン（PC は <span class="term">スペース</span> キー）を押します。</li>
       <li>はじめに練習をします。まず 1-back（約 30 秒）。「同じ」のときに押せた割合から、まちがえて押した割合を引いて 80% 以上なら、2-back の練習（約 30 秒）に進みます。1-back の練習は 3 回までです。練習では、押すと ○ か ×、押し忘れると「見逃し」が出ます。</li>
-      <li>本番は <strong>1-back → 2-back → 3-back</strong> の 3 つです（それぞれ約 50 秒、練習を含めて約 4 分）。本番では ○ × は出ません。</li>
+      <li>本番は <strong>1-back → 2-back → 3-back</strong> の 3 つです（それぞれ約 1 分半、練習を含めて約 6 分）。本番では ○ × は出ません。</li>
     </ol>
     <p class="small">n-back は、Kirchner (1958) が考案し、いまもワーキングメモリの研究や、脳の画像の研究でよく使われている課題です。終わると、n ごとの成績が表示されます。最後に「結果をフォームで送る」ボタンから、その場で結果を送信してください。</p>
     <div class="row"><button class="btn" id="to-setup">設定にすすむ</button></div>
@@ -136,7 +136,7 @@
     <h1>結果：さかのぼる数と成績</h1>
     <div class="row"><a class="btn" id="send-form-top" href="#" target="_blank" rel="noopener">結果をフォームで送る</a></div>
     <p class="small">まず結果を送ってください。フォームが開いたら、学籍番号と氏名を入れて「送信」を押します。結果は授業内の集計にのみ使います。</p>
-    <p class="small">横軸はさかのぼる数（n）、縦軸は見分けやすさ（d′）。d′ は「同じ」のときに押せた割合と、「違う」のときにまちがえて押した割合から計算し、大きいほどよく見分けられています。灰色の点線は、0-back〜7-back を調べた研究の 58 人の平均（図から読み取った値。研究では 1 回 50 文字で、毎回「同じ／違う」のボタンで答えました）。</p>
+    <p class="small">横軸はさかのぼる数（n）、縦軸は見分けやすさ（d′）。d′ は「同じ」のときに押せた割合と、「違う」のときにまちがえて押した割合から計算し、大きいほどよく見分けられています。</p>
     <svg id="chart" viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="stats">
       <div class="stat"><div class="label">1-back</div><div class="value" id="r-1">–</div><div class="note" id="r-1n"></div></div>
@@ -169,17 +169,16 @@
   const CONFIG = {
     openAt: '2026-11-20T14:40:00+09:00',
     levels: [1, 2, 3],
-    nMain: 30,                 // 判定する試行（はじめの n 試行は比べる相手がないので数えない）
-    nTarget: 9,                // 「同じ」30%
-    nLure: 6,                  // まぎらわしい文字（n−1 か n+1 個前と同じ）20%。2-back 以上だけ
+    nMain: 50,                 // 判定する試行（はじめの n 試行は比べる相手がないので数えない）
+    nTarget: 15,               // 「同じ」30%
+    nLure: 10,                 // まぎらわしい文字（n−1 か n+1 個前と同じ）20%。2-back 以上だけ
     nPractice: 20, practiceTarget: 6, practiceLure: 4,   // 練習：判定 20（「同じ」6、2-back はまぎらわしい文字 4）
     passCrit: 0.8, maxTries1: 3, missMs: 600,             // 1-back の練習の基準（ヒット率−誤警報率）と回数の上限
     stimMs: 400, postMs: 800, jitterMs: 800, leadMs: 1000, minRtMs: 150,   // 文字 0.4 秒 → 注視 0.8 秒、文字の前に 0〜0.8 秒のゆらぎ（平均 1.6 秒ごと）
     nLetters: 9,               // 26 字から毎回 9 字を選んで使う
     formBase: 'https://docs.google.com/forms/d/e/1FAIpQLSeNaW2gwFFURpsfuR5OYk-xYsKjDAOWfGcuqn3oIYCj5Pn4pg/viewform',
     formCode: 'entry.925922133', formTrials: 'entry.989279830',   // 結果コード・試行データの欄
-    ref: { d: [3.2, 2.05, 1.3], rt: [0.56, 0.665, 0.63] },
-    version: 'NB3'
+    version: 'NB4'
   };
   if (AUTO) { CONFIG.stimMs = 40; CONFIG.postMs = 40; CONFIG.jitterMs = 20; CONFIG.leadMs = 50; CONFIG.minRtMs = 0; CONFIG.missMs = 20; }
   CONFIG.letters = shuffle0('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')).slice(0, CONFIG.nLetters);
@@ -388,12 +387,12 @@
     html += '<tr><td style="text-align:left">正答率</td>' + S.map(s => '<td>' + Math.round(s.acc * 100) + '%</td>').join('') + '</tr>';
     html += '<tr><td style="text-align:left">d′</td>' + S.map(s => '<td>' + fmt(s.d, 2) + '</td>').join('') + '</tr>';
     html += '<tr><td style="text-align:left">押すまでの時間（ms）</td>' + S.map(s => '<td>' + (s.med ? Math.round(s.med) : '–') + '</td>').join('') + '</tr>';
-    html += '<tr><td style="text-align:left">研究の 58 人：d′</td>' + CONFIG.ref.d.map(v => '<td>' + v + '</td>').join('') + '</tr></table>';
+    html += '</table>';
     document.getElementById('table').innerHTML = html;
     const code = [CONFIG.version, 'd=' + S.map(s => fmt(s.d, 2)).join(','), 'h=' + S.map(s => s.hit + '/' + s.nT).join(','), 'f=' + S.map(s => s.fa + '/' + s.nN).join(','),
       'rt=' + S.map(s => s.med ? Math.round(s.med) : 'NA').join(','), 'p1=' + tries1 + (pass1 ? 'P' : 'F') + fmt(last1, 2), 'p2=' + tries2 + ':' + fmt(last2, 2), 'dev=' + device, 'ua=' + UA, 'id=' + sessionId].join('|');
     document.getElementById('code').textContent = code;
-    const trialStr = 'N3:' + data.filter(r => r.judged).map(r => r.n + '' + (r.target ? 'T' : r.lure ? 'L' : 'N') + r.resp + Math.min(1295, Math.round(r.rt / 10)).toString(36).padStart(2, '0')).join('');
+    const trialStr = 'N4:' + data.filter(r => r.judged).map(r => r.n + '' + (r.target ? 'T' : r.lure ? 'L' : 'N') + r.resp + Math.min(1295, Math.round(r.rt / 10)).toString(36).padStart(2, '0')).join('');
     const formUrl = CONFIG.formBase + '?usp=pp_url&' + CONFIG.formCode + '=' + encodeURIComponent(code) + '&' + CONFIG.formTrials + '=' + encodeURIComponent(trialStr);
     document.getElementById('send-form').href = formUrl; document.getElementById('send-form-top').href = formUrl;
     document.getElementById('form-url').textContent = CONFIG.formBase;
@@ -417,8 +416,6 @@
     el('line', { x1: L, x2: W - R, y1: Y(ymin), y2: Y(ymin), stroke: '#9AA3AA', 'stroke-width': 1.5 });
     CONFIG.levels.forEach(n => el('text', { x: X(n), y: H - B + 28, 'text-anchor': 'middle', 'font-size': 18, fill: '#2B3A42' }, n + '-back'));
     el('text', { x: 22, y: Y(2), 'font-size': 18, fill: '#2B3A42', transform: 'rotate(-90 22 ' + Y(2) + ')', 'text-anchor': 'middle' }, '見分けやすさ d′');
-    el('path', { d: CONFIG.ref.d.map((v, i) => (i ? 'L' : 'M') + X(i + 1) + ',' + Y(v)).join(''), fill: 'none', stroke: '#9AA0A6', 'stroke-width': 2, 'stroke-dasharray': '4 4' });
-    el('text', { x: X(3) + 12, y: Y(CONFIG.ref.d[2]) + 6, 'font-size': 16, fill: '#8A8F94' }, '研究の58人');
     const pts = S.map(s => [s.n, Math.max(ymin, Math.min(ymax, s.d))]);
     el('path', { d: pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]) + ',' + Y(p[1])).join(''), fill: 'none', stroke: '#3A5BA0', 'stroke-width': 3 });
     pts.forEach(p => el('circle', { cx: X(p[0]), cy: Y(p[1]), r: 7, fill: '#3A5BA0' }));
