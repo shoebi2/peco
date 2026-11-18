@@ -88,9 +88,9 @@
       </ul>
     </div>
     <ol>
-      <li>文字は <strong>0.5 秒</strong>出て消え、<strong>2.5 秒</strong>ごとに次の文字が出ます。同じだと思ったら、次の文字が出る前にボタン（PC は <span class="term">スペース</span> キー）を押します。</li>
+      <li>文字は <strong>0.4 秒</strong>出て消え、<strong>平均 1.6 秒</strong>ごと（1.2〜2.0 秒）に次の文字が出ます。同じだと思ったら、次の文字が出る前にボタン（PC は <span class="term">スペース</span> キー）を押します。</li>
       <li>はじめに 1-back の練習（<span id="n-prac"></span> 文字）をします。練習では、押すと ○ か × が出ます。</li>
-      <li>本番は <strong>1-back → 2-back → 3-back</strong> の 3 つです（それぞれ約 1 分、合わせて約 4 分）。本番では ○ × は出ません。</li>
+      <li>本番は <strong>1-back → 2-back → 3-back</strong> の 3 つです（それぞれ約 50 秒、練習を含めて約 3 分）。本番では ○ × は出ません。</li>
     </ol>
     <p class="small">n-back は、Kirchner (1958) が考案し、いまもワーキングメモリの研究や、脳の画像の研究でよく使われている課題です。終わると、n ごとの成績が表示されます。最後に「結果をフォームで送る」ボタンから、その場で結果を送信してください。</p>
     <div class="row"><button class="btn" id="to-setup">設定にすすむ</button></div>
@@ -136,7 +136,7 @@
     <h1>結果：さかのぼる数と成績</h1>
     <div class="row"><a class="btn" id="send-form-top" href="#" target="_blank" rel="noopener">結果をフォームで送る</a></div>
     <p class="small">まず結果を送ってください。フォームが開いたら、学籍番号と氏名を入れて「送信」を押します。結果は授業内の集計にのみ使います。</p>
-    <p class="small">横軸はさかのぼる数（n）、縦軸は見分けやすさ（d′）。d′ は「同じ」のときに押せた割合と、「違う」のときにまちがえて押した割合から計算し、大きいほどよく見分けられています。灰色の点線は、0-back〜7-back を調べた研究の 58 人の平均（図から読み取った値。文字の出し方や回数はこの課題と少し違います）。</p>
+    <p class="small">横軸はさかのぼる数（n）、縦軸は見分けやすさ（d′）。d′ は「同じ」のときに押せた割合と、「違う」のときにまちがえて押した割合から計算し、大きいほどよく見分けられています。灰色の点線は、0-back〜7-back を調べた研究の 58 人の平均（図から読み取った値。研究では 1 回 50 文字で、毎回「同じ／違う」のボタンで答えました）。</p>
     <svg id="chart" viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="stats">
       <div class="stat"><div class="label">1-back</div><div class="value" id="r-1">–</div><div class="note" id="r-1n"></div></div>
@@ -169,17 +169,20 @@
   const CONFIG = {
     openAt: '2026-11-20T14:40:00+09:00',
     levels: [1, 2, 3],
-    nMain: 20,                 // 判定する試行（はじめの n 試行は比べる相手がないので数えない）
-    nTarget: 6, nLure: 2,      // 「同じ」6 回、まぎらわしい文字（n±1 個前と同じ）2 回
+    nMain: 30,                 // 判定する試行（はじめの n 試行は比べる相手がないので数えない）
+    nTarget: 9,                // 「同じ」30%
+    nLure: 6,                  // まぎらわしい文字（n−1 か n+1 個前と同じ）20%。2-back 以上だけ
     nPractice: 12, practiceTarget: 4,
-    stimMs: 500, soaMs: 2500, leadMs: 1500, minRtMs: 150,
-    letters: 'BCDFGHJKLMNPQRSTVWXZ'.split(''),
+    stimMs: 400, postMs: 800, jitterMs: 800, leadMs: 1000, minRtMs: 150,   // 文字 0.4 秒 → 注視 0.8 秒、文字の前に 0〜0.8 秒のゆらぎ（平均 1.6 秒ごと）
+    nLetters: 9,               // 26 字から毎回 9 字を選んで使う
     formBase: 'https://docs.google.com/forms/d/e/1FAIpQLSeNaW2gwFFURpsfuR5OYk-xYsKjDAOWfGcuqn3oIYCj5Pn4pg/viewform',
     formCode: 'entry.925922133', formTrials: 'entry.989279830',   // 結果コード・試行データの欄
     ref: { d: [3.2, 2.05, 1.3], rt: [0.56, 0.665, 0.63] },
-    version: 'NB1'
+    version: 'NB2'
   };
-  if (AUTO) { CONFIG.stimMs = 40; CONFIG.soaMs = 80; CONFIG.leadMs = 50; CONFIG.minRtMs = 0; }
+  if (AUTO) { CONFIG.stimMs = 40; CONFIG.postMs = 40; CONFIG.jitterMs = 20; CONFIG.leadMs = 50; CONFIG.minRtMs = 0; }
+  CONFIG.letters = shuffle0('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')).slice(0, CONFIG.nLetters);
+  function shuffle0(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   document.getElementById('n-prac').textContent = CONFIG.nPractice;
   if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) document.getElementById('hint').textContent = '';
 
@@ -214,7 +217,7 @@
     for (let tries = 0; tries < 200; tries++) {
       const kinds = shuffle(Array(nT).fill('T').concat(Array(nL).fill('L'), Array(nJudge - nT - nL).fill('N')));
       const s = [];
-      for (let i = 0; i < n; i++) s.push(pick(s.slice(-3)));
+      for (let i = 0; i < n; i++) s.push(pick(s.slice(-2)));
       let ok = true;
       for (let k = 0; k < nJudge; k++) {
         const i = s.length, back = s[i - n];
@@ -223,11 +226,11 @@
           const cand = [n - 1, n + 1].filter(m => m >= 1 && i - m >= 0).map(m => s[i - m]).filter(l => l !== back);
           if (!cand.length) { ok = false; break; }
           s.push(cand[Math.floor(Math.random() * cand.length)]);
-        } else s.push(pick([back, s[i - 1], s[i - 2], s[i - 3]].filter(Boolean)));
+        } else s.push(pick([back, s[i - n + 1], s[i - n - 1], s[i - 1], s[i - 2]].filter(Boolean)));
       }
       if (!ok) continue;
       const items = s.map((l, i) => ({ letter: l, target: i >= n && l === s[i - n] ? 1 : 0, lure: i >= n && l !== s[i - n] && ((i - n + 1 >= 0 && l === s[i - n + 1] && n > 1) || (i - n - 1 >= 0 && l === s[i - n - 1])) ? 1 : 0, judged: i >= n ? 1 : 0 }));
-      if (items.filter(t => t.judged && t.target).length === nT) return items;
+      if (items.filter(t => t.judged && t.target).length === nT && items.filter(t => t.judged && t.lure).length === nL) return items;
     }
     throw new Error('seq');
   }
@@ -244,7 +247,7 @@
   function runBlock(n, items, isPractice, done) {
     show('trial');
     document.getElementById('q-main').textContent = n + '-back：' + n + ' つ前と同じなら押す';
-    let idx = -1, onset = 0, responded = false, cur = null;
+    let idx = -1, onset = 0, responded = false, cur = null, last = false;
     const res = [];
     function respond() {
       if (idx < 0 || responded || !cur) return;
@@ -256,25 +259,31 @@
     press.onclick = respond; press.disabled = false;
     document.onkeydown = e => { if (e.code === 'Space') { e.preventDefault(); respond(); } };
     function next() {
-      if (cur) res.push(cur);
       idx++;
+      if (idx >= items.length) {
+        if (cur) res.push(cur);
+        cur = null; press.disabled = true; document.onkeydown = null; letterEl.textContent = ''; fb.style.display = 'none'; done(res); return;
+      }
+      setTimeout(showLetter, Math.random() * CONFIG.jitterMs);
+    }
+    function showLetter() {
+      if (cur) res.push(cur);
       fb.style.display = 'none';
-      if (idx >= items.length) { press.disabled = true; document.onkeydown = null; letterEl.textContent = ''; done(res); return; }
       cur = Object.assign({ n: n, i: idx, resp: 0, rt: 0 }, items[idx]); responded = false;
       letterEl.textContent = cur.letter; onset = performance.now();
       document.getElementById('progress').style.width = ((idx + 1) / items.length * 100) + '%';
       document.getElementById('trial-counter').textContent = (isPractice ? '練習 ' : '本番 ') + (idx + 1) + ' / ' + items.length;
       setTimeout(() => { letterEl.textContent = ''; }, CONFIG.stimMs);
-      if (AUTO) setTimeout(() => { if (Math.random() < (cur.target ? 0.85 - 0.15 * (n - 1) : 0.08 * n)) respond(); }, 20);
-      setTimeout(next, CONFIG.soaMs);
+      if (AUTO) { const c = cur; setTimeout(() => { if (cur === c && Math.random() < (c.target ? 0.85 - 0.15 * (n - 1) : 0.08 * n)) respond(); }, 10); }
+      setTimeout(next, CONFIG.stimMs + CONFIG.postMs);
     }
     letterEl.textContent = '＋';
-    setTimeout(next, CONFIG.leadMs);
+    setTimeout(() => { letterEl.textContent = ''; next(); }, CONFIG.leadMs);
   }
 
   function startPractice() {
     phase = 'practice';
-    runBlock(1, makeSeq(1, CONFIG.nPractice - 1, CONFIG.practiceTarget, 1), true, res => {
+    runBlock(1, makeSeq(1, CONFIG.nPractice - 1, CONFIG.practiceTarget, 0), true, res => {
       const t = res.filter(r => r.judged);
       const hit = t.filter(r => r.target && r.resp).length, nt = t.filter(r => r.target).length, fa = t.filter(r => !r.target && r.resp).length;
       document.getElementById('between-title').textContent = '練習おわり';
@@ -295,7 +304,7 @@
   document.getElementById('redo-practice').onclick = startPractice;
   document.getElementById('start-block').onclick = () => {
     const n = CONFIG.levels[levelIdx];
-    runBlock(n, makeSeq(n, CONFIG.nMain, CONFIG.nTarget, CONFIG.nLure), false, res => {
+    runBlock(n, makeSeq(n, CONFIG.nMain, CONFIG.nTarget, n >= 2 ? CONFIG.nLure : 0), false, res => {
       res.forEach(r => data.push(r));
       document.getElementById('redo-practice').style.display = 'none';
       if (levelIdx + 1 < CONFIG.levels.length) {
@@ -356,7 +365,7 @@
     const code = [CONFIG.version, 'd=' + S.map(s => fmt(s.d, 2)).join(','), 'h=' + S.map(s => s.hit + '/' + s.nT).join(','), 'f=' + S.map(s => s.fa + '/' + s.nN).join(','),
       'rt=' + S.map(s => s.med ? Math.round(s.med) : 'NA').join(','), 'dev=' + device, 'ua=' + UA, 'id=' + sessionId].join('|');
     document.getElementById('code').textContent = code;
-    const trialStr = 'N1:' + data.filter(r => r.judged).map(r => r.n + '' + (r.target ? 'T' : r.lure ? 'L' : 'N') + r.resp + Math.min(1295, Math.round(r.rt / 10)).toString(36).padStart(2, '0')).join('');
+    const trialStr = 'N2:' + data.filter(r => r.judged).map(r => r.n + '' + (r.target ? 'T' : r.lure ? 'L' : 'N') + r.resp + Math.min(1295, Math.round(r.rt / 10)).toString(36).padStart(2, '0')).join('');
     const formUrl = CONFIG.formBase + '?usp=pp_url&' + CONFIG.formCode + '=' + encodeURIComponent(code) + '&' + CONFIG.formTrials + '=' + encodeURIComponent(trialStr);
     document.getElementById('send-form').href = formUrl; document.getElementById('send-form-top').href = formUrl;
     document.getElementById('form-url').textContent = CONFIG.formBase;
