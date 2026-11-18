@@ -31,9 +31,12 @@
   .choice { display:flex; flex-wrap:wrap; gap:8px; margin:0.4em 0; }
   .choice button { background:#fff; color:var(--navy); border:2px solid #C9D3D8; border-radius:8px; padding:0.5em 0.9em; font-size:0.95rem; cursor:pointer; }
   .choice button.sel { border-color:var(--indigo); background:var(--indigo); color:#fff; font-weight:700; }
-  .seq { display:flex; gap:8px; justify-content:center; margin:0.6em 0; flex-wrap:wrap; }
-  .seq span { width:44px; height:54px; display:flex; align-items:center; justify-content:center; background:var(--light); border-radius:8px; font-size:1.6rem; font-weight:700; color:var(--navy); }
-  .seq span.hit { background:#F2CF94; }
+  .cmp { display:flex; gap:10px; justify-content:center; align-items:flex-end; margin:0.6em 0 0.2em; }
+  .cmp > div { display:flex; flex-direction:column; align-items:center; }
+  .cmp .b { width:52px; height:60px; display:flex; align-items:center; justify-content:center; background:#fff; border:3px solid #C9CED6; border-radius:8px; font-size:1.7rem; font-weight:700; color:var(--navy); box-sizing:border-box; }
+  .cmp .b.now { width:68px; height:78px; font-size:2.3rem; }
+  .cmp .b.ref { border-color:#4CAF50; }
+  .cmp .lab { font-size:0.85rem; margin-top:4px; color:#555; }
   #trial { position:relative; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
   #progress { position:absolute; top:0; left:0; height:5px; background:var(--indigo); width:0; transition:width 0.15s; }
   #question { text-align:center; color:var(--navy); font-weight:700; font-size:1.15rem; padding:18px 16px 0; }
@@ -76,9 +79,9 @@
     <p class="lead">知覚・認知心理学 第9回　演習：ワーキングメモリ</p>
     <p>画面の真ん中に、アルファベットが 1 文字ずつ出ます。<strong>いまの文字が、n 個前の文字と同じなら、ボタンを押してください</strong>。違うときは押しません。</p>
     <div class="card">
-      <h3>例：2-back（2 つ前と比べる）</h3>
-      <div class="seq"><span>A</span><span>B</span><span class="hit">A</span><span>C</span><span>C</span><span>B</span></div>
-      <p class="small" style="text-align:center">3 つ目の A は、2 つ前の A と同じなので押す。5 つ目の C は 1 つ前と同じだが、2 つ前（A）とは違うので押さない。</p>
+      <h3>例：2-back（2 個前と比べる）</h3>
+      <div class="cmp"><div><div class="b ref">K</div><div class="lab">2 個前</div></div><div><div class="b">L</div><div class="lab">1 個前</div></div><div><div class="b now">K</div><div class="lab">いまの文字</div></div></div>
+      <p class="small" style="text-align:center">いまの文字（K）が 2 個前（K）と同じなので押す。</p>
     </div>
     <div class="card">
       <h3>はじめる前に</h3>
@@ -88,7 +91,7 @@
       </ul>
     </div>
     <ol>
-      <li>文字は <strong>0.4 秒</strong>出て消え、<strong>平均 1.6 秒</strong>ごと（1.2〜2.0 秒）に次の文字が出ます。同じだと思ったら、次の文字が出る前にボタン（PC は <span class="term">スペース</span> キー）を押します。</li>
+      <li>文字は <strong>0.4 秒</strong>出て消え、<strong>平均 1.6 秒</strong>ごと（1.2〜2.0 秒）に次の文字が出ます。同じだと思ったら、次の文字が出る前にボタン（PC は <span class="term">スペース</span> キー）を押します。<strong>できるだけ速く、まちがえないように</strong>答えてください。</li>
       <li>はじめに練習をします。まず 1-back（約 30 秒）。「同じ」のときに押せた割合から、まちがえて押した割合を引いて 80% 以上なら、2-back の練習（約 30 秒）に進みます。1-back の練習は 3 回までです。練習では、押すと ○ か ×、押し忘れると「見逃し」が出ます。</li>
       <li>本番は <strong>1-back → 2-back → 3-back</strong> の 3 つです（それぞれ約 1 分半、練習を含めて約 6 分）。本番では ○ × は出ません。</li>
     </ol>
@@ -245,7 +248,7 @@
   const letterEl = document.getElementById('letter'), fb = document.getElementById('feedback'), press = document.getElementById('press');
   function runBlock(n, items, isPractice, done) {
     show('trial');
-    document.getElementById('q-main').textContent = n + '-back：' + n + ' つ前と同じなら押す';
+    document.getElementById('q-main').textContent = n + '-back：' + n + ' 個前と同じなら押す';
     let idx = -1, onset = 0, responded = false, cur = null, last = false;
     const res = [];
     function respond() {
@@ -302,13 +305,13 @@
     if (AUTO) setTimeout(() => document.getElementById('start-block').click(), 30);
   }
   function scoreMsg(p) { return '「同じ」' + p.nt + ' 回のうち ' + p.hit + ' 回押せました。まちがえて押したのは ' + p.fa + ' 回です（押せた割合 − まちがえて押した割合 ＝ ' + Math.round(p.score * 100) + '%）。'; }
-  const card2 = '<h3>次は 2-back の練習</h3><p>いまの文字が <strong>2 つ前</strong>の文字と同じなら押します。すぐ前ではなく、2 つ前です。すぐ前と同じ文字や 3 つ前と同じ文字も出るので、気をつけてください。</p>';
+  const card2 = '<h3>次は 2-back の練習</h3><p>いまの文字が <strong>2 個前</strong>の文字と同じなら押します。すぐ前ではなく、2 個前です。すぐ前と同じ文字や 3 個前と同じ文字も出るので、気をつけてください。</p>';
   function practice1() {
     tries1++;
     runBlock(1, makeSeq(1, CONFIG.nPractice, CONFIG.practiceTarget, 0), true, res => {
       const p = practiceScore(res); last1 = p.score;
       if (p.score >= CONFIG.passCrit) { pass1 = true; between('1-back の練習：合格', scoreMsg(p), card2, '2-back の練習をはじめる', practice2); }
-      else if (tries1 < CONFIG.maxTries1) between('1-back の練習：もう一度', scoreMsg(p) + ' 80% 以上をめざして、もう一度練習しましょう（あと ' + (CONFIG.maxTries1 - tries1) + ' 回）。', '<h3>1-back</h3><p>いまの文字が <strong>すぐ前（1 つ前）</strong>の文字と同じなら押します。違うときは押しません。</p>', '1-back の練習をもう一度', practice1);
+      else if (tries1 < CONFIG.maxTries1) between('1-back の練習：もう一度', scoreMsg(p) + ' 80% 以上をめざして、もう一度練習しましょう（あと ' + (CONFIG.maxTries1 - tries1) + ' 回）。', '<h3>1-back</h3><p>いまの文字が <strong>すぐ前（1 個前）</strong>の文字と同じなら押します。違うときは押しません。</p>', '1-back の練習をもう一度', practice1);
       else between('1-back の練習：ここまで', scoreMsg(p) + ' 練習はここまでにして、先に進みます。', card2, '2-back の練習をはじめる', practice2);
     });
   }
@@ -317,12 +320,12 @@
     runBlock(2, makeSeq(2, CONFIG.nPractice, CONFIG.practiceTarget, CONFIG.practiceLure), true, res => {
       const p = practiceScore(res); last2 = p.score;
       levelIdx = 0;
-      between('2-back の練習おわり', scoreMsg(p) + ' つぎから本番です。', '<h3>次は 1-back（本番）</h3><p>いまの文字が <strong>1 つ前</strong>の文字と同じなら押します。本番では ○ × は出ません。</p>', '1-back をはじめる', startMain, '2-back の練習をもう一度', practice2);
+      between('2-back の練習おわり', scoreMsg(p) + ' つぎから本番です。', '<h3>次は 1-back（本番）</h3><p>いまの文字が <strong>1 個前</strong>の文字と同じなら押します。本番では ○ × は出ません。</p>', '1-back をはじめる', startMain, '2-back の練習をもう一度', practice2);
     });
   }
   function setNext(li) {
     const n = CONFIG.levels[li];
-    document.getElementById('between-card').innerHTML = '<h3>次は ' + n + '-back（本番）</h3><p>いまの文字が <strong>' + n + ' つ前</strong>の文字と同じなら押します。' + (n > 1 ? 'すぐ前ではなく、' + n + ' つ前です。' : '') + '本番では ○ × は出ません。</p>';
+    document.getElementById('between-card').innerHTML = '<h3>次は ' + n + '-back（本番）</h3><p>いまの文字が <strong>' + n + ' 個前</strong>の文字と同じなら押します。' + (n > 1 ? 'すぐ前ではなく、' + n + ' 個前です。' : '') + '本番では ○ × は出ません。</p>';
     document.getElementById('start-block').textContent = n + '-back をはじめる';
     levelIdx = li; nextAction = startMain;
   }
@@ -378,7 +381,7 @@
     const dd = S.map(s => s.d);
     if (dd[0] > dd[1] && dd[1] > dd[2]) f.push('さかのぼる数が増えるほど、見分けにくくなりました（多くの人と同じ形です）。');
     else f.push('さかのぼる数と成績の関係が、まっすぐ下がる形ではありませんでした。1 人あたりの試行が少ないので、偶然のゆれも大きくなります。');
-    if (S[2].fa > S[0].fa) f.push('3-back では、まちがって押す回数も増えました。似た文字（すぐ前や 4 つ前と同じ文字）にまどわされやすくなります。');
+    if (S[2].fa > S[0].fa) f.push('3-back では、まちがって押す回数も増えました。似た文字（すぐ前や 4 個前と同じ文字）にまどわされやすくなります。');
     if (S[1].med && S[0].med) f.push('「同じ」と押すまでの時間（中央値）：1-back ' + Math.round(S[0].med) + ' ms、2-back ' + Math.round(S[1].med) + ' ms' + (S[2].med ? '、3-back ' + Math.round(S[2].med) + ' ms' : '') + '。');
     document.getElementById('r-features').innerHTML = f.map(t => '<li>' + t + '</li>').join('');
     let html = '<table class="cells"><tr><th></th>' + S.map(s => '<th>' + s.n + '-back</th>').join('') + '</tr>';
