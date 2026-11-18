@@ -89,8 +89,8 @@
     </div>
     <ol>
       <li>文字は <strong>0.4 秒</strong>出て消え、<strong>平均 1.6 秒</strong>ごと（1.2〜2.0 秒）に次の文字が出ます。同じだと思ったら、次の文字が出る前にボタン（PC は <span class="term">スペース</span> キー）を押します。</li>
-      <li>はじめに 1-back の練習（<span id="n-prac"></span> 文字）をします。練習では、押すと ○ か × が出ます。</li>
-      <li>本番は <strong>1-back → 2-back → 3-back</strong> の 3 つです（それぞれ約 50 秒、練習を含めて約 3 分）。本番では ○ × は出ません。</li>
+      <li>はじめに練習をします。まず 1-back（約 30 秒）。「同じ」のときに押せた割合から、まちがえて押した割合を引いて 80% 以上なら、2-back の練習（約 30 秒）に進みます。1-back の練習は 3 回までです。練習では、押すと ○ か ×、押し忘れると「見逃し」が出ます。</li>
+      <li>本番は <strong>1-back → 2-back → 3-back</strong> の 3 つです（それぞれ約 50 秒、練習を含めて約 4 分）。本番では ○ × は出ません。</li>
     </ol>
     <p class="small">n-back は、Kirchner (1958) が考案し、いまもワーキングメモリの研究や、脳の画像の研究でよく使われている課題です。終わると、n ごとの成績が表示されます。最後に「結果をフォームで送る」ボタンから、その場で結果を送信してください。</p>
     <div class="row"><button class="btn" id="to-setup">設定にすすむ</button></div>
@@ -172,18 +172,18 @@
     nMain: 30,                 // 判定する試行（はじめの n 試行は比べる相手がないので数えない）
     nTarget: 9,                // 「同じ」30%
     nLure: 6,                  // まぎらわしい文字（n−1 か n+1 個前と同じ）20%。2-back 以上だけ
-    nPractice: 12, practiceTarget: 4,
+    nPractice: 20, practiceTarget: 6, practiceLure: 4,   // 練習：判定 20（「同じ」6、2-back はまぎらわしい文字 4）
+    passCrit: 0.8, maxTries1: 3, missMs: 600,             // 1-back の練習の基準（ヒット率−誤警報率）と回数の上限
     stimMs: 400, postMs: 800, jitterMs: 800, leadMs: 1000, minRtMs: 150,   // 文字 0.4 秒 → 注視 0.8 秒、文字の前に 0〜0.8 秒のゆらぎ（平均 1.6 秒ごと）
     nLetters: 9,               // 26 字から毎回 9 字を選んで使う
     formBase: 'https://docs.google.com/forms/d/e/1FAIpQLSeNaW2gwFFURpsfuR5OYk-xYsKjDAOWfGcuqn3oIYCj5Pn4pg/viewform',
     formCode: 'entry.925922133', formTrials: 'entry.989279830',   // 結果コード・試行データの欄
     ref: { d: [3.2, 2.05, 1.3], rt: [0.56, 0.665, 0.63] },
-    version: 'NB2'
+    version: 'NB3'
   };
-  if (AUTO) { CONFIG.stimMs = 40; CONFIG.postMs = 40; CONFIG.jitterMs = 20; CONFIG.leadMs = 50; CONFIG.minRtMs = 0; }
+  if (AUTO) { CONFIG.stimMs = 40; CONFIG.postMs = 40; CONFIG.jitterMs = 20; CONFIG.leadMs = 50; CONFIG.minRtMs = 0; CONFIG.missMs = 20; }
   CONFIG.letters = shuffle0('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')).slice(0, CONFIG.nLetters);
   function shuffle0(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-  document.getElementById('n-prac').textContent = CONFIG.nPractice;
   if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) document.getElementById('hint').textContent = '';
 
   const screens = {};
@@ -262,9 +262,13 @@
       idx++;
       if (idx >= items.length) {
         if (cur) res.push(cur);
-        cur = null; press.disabled = true; document.onkeydown = null; letterEl.textContent = ''; fb.style.display = 'none'; done(res); return;
+        if (isPractice && cur && cur.target && !cur.resp) { fb.textContent = '見逃し'; fb.className = ''; fb.style.display = 'block'; }
+        cur = null; press.disabled = true; document.onkeydown = null; letterEl.textContent = '';
+        setTimeout(() => { fb.style.display = 'none'; done(res); }, isPractice ? CONFIG.missMs : 0); return;
       }
-      setTimeout(showLetter, Math.random() * CONFIG.jitterMs);
+      let extra = 0;
+      if (isPractice && cur && cur.target && !cur.resp) { fb.textContent = '見逃し'; fb.className = ''; fb.style.display = 'block'; extra = CONFIG.missMs; }
+      setTimeout(showLetter, extra + Math.random() * CONFIG.jitterMs);
     }
     function showLetter() {
       if (cur) res.push(cur);
@@ -281,28 +285,52 @@
     setTimeout(() => { letterEl.textContent = ''; next(); }, CONFIG.leadMs);
   }
 
-  function startPractice() {
-    phase = 'practice';
-    runBlock(1, makeSeq(1, CONFIG.nPractice - 1, CONFIG.practiceTarget, 0), true, res => {
-      const t = res.filter(r => r.judged);
-      const hit = t.filter(r => r.target && r.resp).length, nt = t.filter(r => r.target).length, fa = t.filter(r => !r.target && r.resp).length;
-      document.getElementById('between-title').textContent = '練習おわり';
-      document.getElementById('between-msg').textContent = '「同じ」' + nt + ' 回のうち ' + hit + ' 回押せました。まちがえて押したのは ' + fa + ' 回です。';
-      setNext(0);
-      document.getElementById('redo-practice').style.display = '';
-      show('between');
-      if (AUTO) setTimeout(() => document.getElementById('start-block').click(), 30);
+  let tries1 = 0, pass1 = false, last1 = NaN, tries2 = 0, last2 = NaN, nextAction = null, redoAction = null;
+  function practiceScore(res) {
+    const t = res.filter(r => r.judged);
+    const nt = t.filter(r => r.target).length, nn = t.length - nt;
+    const hit = t.filter(r => r.target && r.resp).length, fa = t.filter(r => !r.target && r.resp).length;
+    return { nt, hit, fa, score: hit / nt - fa / nn };
+  }
+  function between(title, msg, card, startLabel, onStart, redoLabel, onRedo) {
+    document.getElementById('between-title').textContent = title;
+    document.getElementById('between-msg').textContent = msg;
+    document.getElementById('between-card').innerHTML = card;
+    document.getElementById('start-block').textContent = startLabel; nextAction = onStart;
+    const r = document.getElementById('redo-practice');
+    if (redoLabel) { r.textContent = redoLabel; r.style.display = ''; redoAction = onRedo; } else { r.style.display = 'none'; redoAction = null; }
+    show('between');
+    if (AUTO) setTimeout(() => document.getElementById('start-block').click(), 30);
+  }
+  function scoreMsg(p) { return '「同じ」' + p.nt + ' 回のうち ' + p.hit + ' 回押せました。まちがえて押したのは ' + p.fa + ' 回です（押せた割合 − まちがえて押した割合 ＝ ' + Math.round(p.score * 100) + '%）。'; }
+  const card2 = '<h3>次は 2-back の練習</h3><p>いまの文字が <strong>2 つ前</strong>の文字と同じなら押します。すぐ前ではなく、2 つ前です。すぐ前と同じ文字や 3 つ前と同じ文字も出るので、気をつけてください。</p>';
+  function practice1() {
+    tries1++;
+    runBlock(1, makeSeq(1, CONFIG.nPractice, CONFIG.practiceTarget, 0), true, res => {
+      const p = practiceScore(res); last1 = p.score;
+      if (p.score >= CONFIG.passCrit) { pass1 = true; between('1-back の練習：合格', scoreMsg(p), card2, '2-back の練習をはじめる', practice2); }
+      else if (tries1 < CONFIG.maxTries1) between('1-back の練習：もう一度', scoreMsg(p) + ' 80% 以上をめざして、もう一度練習しましょう（あと ' + (CONFIG.maxTries1 - tries1) + ' 回）。', '<h3>1-back</h3><p>いまの文字が <strong>すぐ前（1 つ前）</strong>の文字と同じなら押します。違うときは押しません。</p>', '1-back の練習をもう一度', practice1);
+      else between('1-back の練習：ここまで', scoreMsg(p) + ' 練習はここまでにして、先に進みます。', card2, '2-back の練習をはじめる', practice2);
+    });
+  }
+  function practice2() {
+    tries2++;
+    runBlock(2, makeSeq(2, CONFIG.nPractice, CONFIG.practiceTarget, CONFIG.practiceLure), true, res => {
+      const p = practiceScore(res); last2 = p.score;
+      levelIdx = 0;
+      between('2-back の練習おわり', scoreMsg(p) + ' つぎから本番です。', '<h3>次は 1-back（本番）</h3><p>いまの文字が <strong>1 つ前</strong>の文字と同じなら押します。本番では ○ × は出ません。</p>', '1-back をはじめる', startMain, '2-back の練習をもう一度', practice2);
     });
   }
   function setNext(li) {
     const n = CONFIG.levels[li];
     document.getElementById('between-card').innerHTML = '<h3>次は ' + n + '-back（本番）</h3><p>いまの文字が <strong>' + n + ' つ前</strong>の文字と同じなら押します。' + (n > 1 ? 'すぐ前ではなく、' + n + ' つ前です。' : '') + '本番では ○ × は出ません。</p>';
     document.getElementById('start-block').textContent = n + '-back をはじめる';
-    levelIdx = li;
+    levelIdx = li; nextAction = startMain;
   }
-  document.getElementById('start-practice').onclick = startPractice;
-  document.getElementById('redo-practice').onclick = startPractice;
-  document.getElementById('start-block').onclick = () => {
+  document.getElementById('start-practice').onclick = practice1;
+  document.getElementById('redo-practice').onclick = () => { if (redoAction) redoAction(); };
+  document.getElementById('start-block').onclick = () => { if (nextAction) nextAction(); };
+  function startMain() {
     const n = CONFIG.levels[levelIdx];
     runBlock(n, makeSeq(n, CONFIG.nMain, CONFIG.nTarget, n >= 2 ? CONFIG.nLure : 0), false, res => {
       res.forEach(r => data.push(r));
@@ -314,7 +342,7 @@
         if (AUTO) setTimeout(() => document.getElementById('start-block').click(), 30);
       } else showResult();
     });
-  };
+  }
 
   // d′：ヒット率と誤警報率に対数線形の補正（0.5 を足す）をして計算
   function zinv(p) { // 標準正規分布の分位点（Acklam の近似）
@@ -363,9 +391,9 @@
     html += '<tr><td style="text-align:left">研究の 58 人：d′</td>' + CONFIG.ref.d.map(v => '<td>' + v + '</td>').join('') + '</tr></table>';
     document.getElementById('table').innerHTML = html;
     const code = [CONFIG.version, 'd=' + S.map(s => fmt(s.d, 2)).join(','), 'h=' + S.map(s => s.hit + '/' + s.nT).join(','), 'f=' + S.map(s => s.fa + '/' + s.nN).join(','),
-      'rt=' + S.map(s => s.med ? Math.round(s.med) : 'NA').join(','), 'dev=' + device, 'ua=' + UA, 'id=' + sessionId].join('|');
+      'rt=' + S.map(s => s.med ? Math.round(s.med) : 'NA').join(','), 'p1=' + tries1 + (pass1 ? 'P' : 'F') + fmt(last1, 2), 'p2=' + tries2 + ':' + fmt(last2, 2), 'dev=' + device, 'ua=' + UA, 'id=' + sessionId].join('|');
     document.getElementById('code').textContent = code;
-    const trialStr = 'N2:' + data.filter(r => r.judged).map(r => r.n + '' + (r.target ? 'T' : r.lure ? 'L' : 'N') + r.resp + Math.min(1295, Math.round(r.rt / 10)).toString(36).padStart(2, '0')).join('');
+    const trialStr = 'N3:' + data.filter(r => r.judged).map(r => r.n + '' + (r.target ? 'T' : r.lure ? 'L' : 'N') + r.resp + Math.min(1295, Math.round(r.rt / 10)).toString(36).padStart(2, '0')).join('');
     const formUrl = CONFIG.formBase + '?usp=pp_url&' + CONFIG.formCode + '=' + encodeURIComponent(code) + '&' + CONFIG.formTrials + '=' + encodeURIComponent(trialStr);
     document.getElementById('send-form').href = formUrl; document.getElementById('send-form-top').href = formUrl;
     document.getElementById('form-url').textContent = CONFIG.formBase;
