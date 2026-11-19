@@ -139,7 +139,7 @@
     <h1>結果：さかのぼる数と成績</h1>
     <div class="row"><a class="btn" id="send-form-top" href="#" target="_blank" rel="noopener">結果をフォームで送る</a></div>
     <p class="small">まず結果を送ってください。フォームが開いたら、学籍番号と氏名を入れて「送信」を押します。結果は授業内の集計にのみ使います。</p>
-    <p class="small">横軸はさかのぼる数（n）、縦軸は見分けやすさ（d′）。d′ は「同じ」のときに押せた割合と、「違う」のときにまちがえて押した割合から計算し、大きいほどよく見分けられています。</p>
+    <p class="small">横軸はさかのぼる数（n）、縦軸は正確さ（d′）。d′ は「同じ」のときに押せた割合と、「違う」のときにまちがえて押した割合から計算し、大きいほど正確です。</p>
     <svg id="chart" viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="stats">
       <div class="stat"><div class="label">1-back</div><div class="value" id="r-1">–</div><div class="note" id="r-1n"></div></div>
@@ -379,7 +379,7 @@
     });
     const f = [];
     const dd = S.map(s => s.d);
-    if (dd[0] > dd[1] && dd[1] > dd[2]) f.push('さかのぼる数が増えるほど、見分けにくくなりました（多くの人と同じ形です）。');
+    if (dd[0] > dd[1] && dd[1] > dd[2]) f.push('さかのぼる数が増えるほど、正確さが下がりました（多くの人と同じ形です）。');
     else f.push('さかのぼる数と成績の関係が、まっすぐ下がる形ではありませんでした。1 人あたりの試行が少ないので、偶然のゆれも大きくなります。');
     if (S[2].fa > S[0].fa) f.push('3-back では、まちがって押す回数も増えました。似た文字（すぐ前や 4 個前と同じ文字）にまどわされやすくなります。');
     if (S[1].med && S[0].med) f.push('「同じ」と押すまでの時間（中央値）：1-back ' + Math.round(S[0].med) + ' ms、2-back ' + Math.round(S[1].med) + ' ms' + (S[2].med ? '、3-back ' + Math.round(S[2].med) + ' ms' : '') + '。');
@@ -418,7 +418,7 @@
     [0, 1, 2, 3, 4].forEach(v => { el('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: '#E6E9EC', 'stroke-width': 1.5 }); el('text', { x: L - 12, y: Y(v) + 6, 'text-anchor': 'end', 'font-size': 18, fill: '#2B3A42' }, v); });
     el('line', { x1: L, x2: W - R, y1: Y(ymin), y2: Y(ymin), stroke: '#9AA3AA', 'stroke-width': 1.5 });
     CONFIG.levels.forEach(n => el('text', { x: X(n), y: H - B + 28, 'text-anchor': 'middle', 'font-size': 18, fill: '#2B3A42' }, n + '-back'));
-    el('text', { x: 22, y: Y(2), 'font-size': 18, fill: '#2B3A42', transform: 'rotate(-90 22 ' + Y(2) + ')', 'text-anchor': 'middle' }, '見分けやすさ d′');
+    el('text', { x: 22, y: Y(2), 'font-size': 18, fill: '#2B3A42', transform: 'rotate(-90 22 ' + Y(2) + ')', 'text-anchor': 'middle' }, '正確さ d′');
     const pts = S.map(s => [s.n, Math.max(ymin, Math.min(ymax, s.d))]);
     el('path', { d: pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]) + ',' + Y(p[1])).join(''), fill: 'none', stroke: '#3A5BA0', 'stroke-width': 3 });
     pts.forEach(p => el('circle', { cx: X(p[0]), cy: Y(p[1]), r: 7, fill: '#3A5BA0' }));
